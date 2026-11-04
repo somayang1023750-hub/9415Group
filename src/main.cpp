@@ -137,7 +137,8 @@ int main() {
                               : readMovementInput(window.nativeHandle()),
                           deltaSeconds, shotTarget);
       }
-      craft::app::drawGameplayUi(arenaScene.gameplay());
+      if (craft::app::drawGameplayUi(arenaScene.gameplay()))
+        arenaScene.resetGameplay();
       const auto benchmarkState = benchmark.snapshot();
       const int worldVertexCount = arenaScene.worldVertexCount();
       craft::app::UiDiagnostics uiDiagnostics;
@@ -155,7 +156,8 @@ int main() {
                            arenaScene.gameplay().orbs().size());
       uiDiagnostics.renderedTriangles += proxyCount * 12;
       uiDiagnostics.drawCalls =
-          1 + craft::graphics::ArenaRenderer::kPlayerPartCount + proxyCount;
+          1 + craft::graphics::ArenaRenderer::kPlayerPartCount + proxyCount +
+          static_cast<int>(arenaScene.gameplay().explosions().size());
       uiDiagnostics.framebufferWidth = framebufferWidth;
       uiDiagnostics.framebufferHeight = framebufferHeight;
       uiDiagnostics.frameTimeMilliseconds = deltaSeconds * 1000.0F;

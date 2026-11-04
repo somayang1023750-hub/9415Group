@@ -93,9 +93,12 @@ and a GitLab-ready progress summary.
 After Enter, use WASD and click towards red enemy cubes to shoot. Holding the
 mouse button does not auto-fire. Kills drop green EXP cubes; approaching attracts
 and collects them. Level-up pauses gameplay and opens a centred English selection dialog with two
-random weapon choices; click one to resume. Heavy fires slower projectiles with
-a longer shot interval and higher damage; Rapid has faster projectiles and a
-shorter interval with lower damage; Balanced sits between them.
+random weapon choices; click one to resume. The weapon pool is Balance (two-hit standard bullets), Laser (four-hit piercing
+shots that reflect off one wall) and Bomb (one-hit full-damage area explosions).
+Enemies have 4 HP; weapon damage stays fixed across levels. Each level offers two
+distinct random weapons. Enemies move at 4.3 blocks/second versus the player's 5,
+with persistent waypoints and live actor occupancy for rerouting.
+Victory/defeat also opens a clear result dialog with a Play again button.
 The temporary gameplay panel shows HP, survival countdown, EXP and equipment.
 Restart current configuration resets gameplay; Level 1/2 requests await B's maps.
 

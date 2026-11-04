@@ -2,11 +2,10 @@
 
 #include <array>
 #include <cmath>
-#include <vector>
-
 #include <glm/ext/matrix_transform.hpp>
 #include <glm/vec2.hpp>
 #include <glm/vec3.hpp>
+#include <vector>
 
 #include "graphics/OpenGL.h"
 #include "graphics/Shader.h"
@@ -26,29 +25,59 @@ struct FaceDefinition {
 
 const std::array<FaceDefinition, 6> kCubeFaces{{
     // +X
-    {1, 0, 0, 0.78F,
-     {{{1.0F, 0.0F, 0.0F}, {1.0F, 1.0F, 0.0F},
-       {1.0F, 1.0F, 1.0F}, {1.0F, 0.0F, 1.0F}}}},
+    {1,
+     0,
+     0,
+     0.78F,
+     {{{1.0F, 0.0F, 0.0F},
+       {1.0F, 1.0F, 0.0F},
+       {1.0F, 1.0F, 1.0F},
+       {1.0F, 0.0F, 1.0F}}}},
     // -X
-    {-1, 0, 0, 0.68F,
-     {{{0.0F, 0.0F, 1.0F}, {0.0F, 1.0F, 1.0F},
-       {0.0F, 1.0F, 0.0F}, {0.0F, 0.0F, 0.0F}}}},
+    {-1,
+     0,
+     0,
+     0.68F,
+     {{{0.0F, 0.0F, 1.0F},
+       {0.0F, 1.0F, 1.0F},
+       {0.0F, 1.0F, 0.0F},
+       {0.0F, 0.0F, 0.0F}}}},
     // +Y
-    {0, 1, 0, 1.12F,
-     {{{0.0F, 1.0F, 0.0F}, {0.0F, 1.0F, 1.0F},
-       {1.0F, 1.0F, 1.0F}, {1.0F, 1.0F, 0.0F}}}},
+    {0,
+     1,
+     0,
+     1.12F,
+     {{{0.0F, 1.0F, 0.0F},
+       {0.0F, 1.0F, 1.0F},
+       {1.0F, 1.0F, 1.0F},
+       {1.0F, 1.0F, 0.0F}}}},
     // -Y
-    {0, -1, 0, 0.52F,
-     {{{0.0F, 0.0F, 1.0F}, {0.0F, 0.0F, 0.0F},
-       {1.0F, 0.0F, 0.0F}, {1.0F, 0.0F, 1.0F}}}},
+    {0,
+     -1,
+     0,
+     0.52F,
+     {{{0.0F, 0.0F, 1.0F},
+       {0.0F, 0.0F, 0.0F},
+       {1.0F, 0.0F, 0.0F},
+       {1.0F, 0.0F, 1.0F}}}},
     // +Z
-    {0, 0, 1, 0.90F,
-     {{{0.0F, 0.0F, 1.0F}, {1.0F, 0.0F, 1.0F},
-       {1.0F, 1.0F, 1.0F}, {0.0F, 1.0F, 1.0F}}}},
+    {0,
+     0,
+     1,
+     0.90F,
+     {{{0.0F, 0.0F, 1.0F},
+       {1.0F, 0.0F, 1.0F},
+       {1.0F, 1.0F, 1.0F},
+       {0.0F, 1.0F, 1.0F}}}},
     // -Z
-    {0, 0, -1, 0.74F,
-     {{{1.0F, 0.0F, 0.0F}, {0.0F, 0.0F, 0.0F},
-       {0.0F, 1.0F, 0.0F}, {1.0F, 1.0F, 0.0F}}}},
+    {0,
+     0,
+     -1,
+     0.74F,
+     {{{1.0F, 0.0F, 0.0F},
+       {0.0F, 0.0F, 0.0F},
+       {0.0F, 1.0F, 0.0F},
+       {1.0F, 1.0F, 0.0F}}}},
 }};
 
 struct UvRect {
@@ -65,8 +94,8 @@ struct SkinUvLayout {
 };
 
 constexpr SkinUvLayout kHeadSkin{{{
-    {16.0F, 8.0F, 8.0F, 8.0F},   // left
-    {0.0F, 8.0F, 8.0F, 8.0F},    // right
+    {16.0F, 8.0F, 8.0F, 8.0F},  // left
+    {0.0F, 8.0F, 8.0F, 8.0F},   // right
     {8.0F, 0.0F, 8.0F, 8.0F},   // top
     {16.0F, 0.0F, 8.0F, 8.0F},  // bottom
     {8.0F, 8.0F, 8.0F, 8.0F},   // front
@@ -103,10 +132,10 @@ constexpr SkinUvLayout kLeftArmSkin{{{
 constexpr SkinUvLayout kRightLegSkin{{{
     {8.0F, 20.0F, 4.0F, 12.0F},   // left
     {0.0F, 20.0F, 4.0F, 12.0F},   // right
-    {4.0F, 16.0F, 4.0F, 4.0F},   // top
-    {8.0F, 16.0F, 4.0F, 4.0F},   // bottom
-    {4.0F, 20.0F, 4.0F, 12.0F},  // front
-    {12.0F, 20.0F, 4.0F, 12.0F}, // back
+    {4.0F, 16.0F, 4.0F, 4.0F},    // top
+    {8.0F, 16.0F, 4.0F, 4.0F},    // bottom
+    {4.0F, 20.0F, 4.0F, 12.0F},   // front
+    {12.0F, 20.0F, 4.0F, 12.0F},  // back
 }}};
 
 constexpr SkinUvLayout kLeftLegSkin{{{
@@ -127,9 +156,8 @@ constexpr float kWalkSwingAmplitude = 0.55F;
 
 void appendVertex(std::vector<float>& vertices, const glm::vec3& position,
                   const glm::vec3& color) {
-  vertices.insert(vertices.end(),
-                  {position.x, position.y, position.z, color.r, color.g,
-                   color.b});
+  vertices.insert(vertices.end(), {position.x, position.y, position.z, color.r,
+                                   color.g, color.b});
 }
 
 void appendTexturedVertex(std::vector<float>& vertices,
@@ -149,9 +177,9 @@ void appendQuad(std::vector<float>& vertices,
 }
 
 std::array<glm::vec2, 4> faceUvCoordinates(const UvRect& rect,
-                                          std::size_t faceIndex,
-                                          int textureWidth,
-                                          int textureHeight) {
+                                           std::size_t faceIndex,
+                                           int textureWidth,
+                                           int textureHeight) {
   const float u0 = rect.x / static_cast<float>(textureWidth);
   const float u1 = (rect.x + rect.width) / static_cast<float>(textureWidth);
   // Texture loads keep the PNG's first row at v = 0.
@@ -261,9 +289,8 @@ void configureVertexArray(unsigned int vertexArray, unsigned int vertexBuffer,
 
 }  // namespace
 
-ArenaRenderer::ArenaRenderer(
-    const world::ArenaWorld& world,
-    const std::filesystem::path& playerTexturePath)
+ArenaRenderer::ArenaRenderer(const world::ArenaWorld& world,
+                             const std::filesystem::path& playerTexturePath)
     : playerTexture_(playerTexturePath, Texture::Magnification::Nearest,
                      Texture::Minification::Nearest) {
   glGenVertexArrays(1, &worldVertexArray_);
@@ -271,6 +298,14 @@ ArenaRenderer::ArenaRenderer(
   glGenVertexArrays(1, &playerVertexArray_);
   glGenBuffers(1, &playerVertexBuffer_);
 
+  glGenVertexArrays(1, &blastVertexArray_);
+  glGenBuffers(1, &blastVertexBuffer_);
+  std::vector<float> ring;
+  for (int i = 0; i < 64; ++i) {
+    const float angle = 6.2831853F * i / 64;
+    appendVertex(ring, {std::cos(angle), 0, std::sin(angle)}, glm::vec3(1));
+  }
+  configureVertexArray(blastVertexArray_, blastVertexBuffer_, ring);
   rebuildWorldMesh(world);
 
   std::vector<float> playerVertices;
@@ -287,6 +322,8 @@ ArenaRenderer::ArenaRenderer(
 }
 
 ArenaRenderer::~ArenaRenderer() {
+  glDeleteBuffers(1, &blastVertexBuffer_);
+  glDeleteVertexArrays(1, &blastVertexArray_);
   if (playerVertexBuffer_ != 0) {
     glDeleteBuffers(1, &playerVertexBuffer_);
   }
@@ -332,15 +369,13 @@ void ArenaRenderer::drawWorld(const Shader& shader,
 
 void ArenaRenderer::drawPlayer(const Shader& shader,
                                const glm::mat4& viewProjection,
-                               const glm::vec3& position,
-                               float yawRadians, float walkCyclePhase,
-                               bool moving) const {
+                               const glm::vec3& position, float yawRadians,
+                               float walkCyclePhase, bool moving) const {
   glm::mat4 actorRoot{1.0F};
   actorRoot = glm::translate(actorRoot, position);
-  actorRoot =
-      glm::rotate(actorRoot, yawRadians, glm::vec3{0.0F, 1.0F, 0.0F});
-  const glm::mat4 feet = glm::translate(
-      actorRoot, glm::vec3{0.0F, -kPlayerFeetOffset, 0.0F});
+  actorRoot = glm::rotate(actorRoot, yawRadians, glm::vec3{0.0F, 1.0F, 0.0F});
+  const glm::mat4 feet =
+      glm::translate(actorRoot, glm::vec3{0.0F, -kPlayerFeetOffset, 0.0F});
 
   const glm::vec3 headSize{8.0F * kSkinPixelSize};
   const glm::vec3 torsoSize{8.0F * kSkinPixelSize, 12.0F * kSkinPixelSize,
@@ -391,16 +426,37 @@ void ArenaRenderer::drawPlayer(const Shader& shader,
 }
 
 void ArenaRenderer::drawProxy(const Shader& shader, const glm::mat4& vp,
-                               const glm::vec3& position,
-                               const glm::vec3& halfExtents,
-                               const glm::vec3& color) const {
+                              const glm::vec3& position,
+                              const glm::vec3& halfExtents,
+                              const glm::vec3& color, float yawRadians) const {
   shader.use();
   shader.setInt("uUseTexture", 0);
   shader.setVec3("uTint", color);
-  shader.setMat4("uMvp", vp * glm::scale(glm::translate(glm::mat4(1), position),
-                                       halfExtents * 2.0F));
+  shader.setMat4(
+      "uMvp",
+      vp * glm::scale(glm::rotate(glm::translate(glm::mat4(1), position),
+                                  yawRadians, glm::vec3(0, 1, 0)),
+                      halfExtents * 2.0F));
   glBindVertexArray(playerVertexArray_);
   glDrawArrays(GL_TRIANGLES, playerPartRanges_[0].firstVertex, 36);
+  glBindVertexArray(0);
+}
+
+void ArenaRenderer::drawBlast(const Shader& shader, const glm::mat4& vp,
+                              const glm::vec3& position, float radius,
+                              float age) const {
+  shader.use();
+  shader.setInt("uUseTexture", 0);
+  shader.setVec3("uTint", glm::vec3(1.F, 0.55F, 0.12F) * (1 - age / 0.4F));
+  // Full damage radius is visible immediately; this is a debug ring, not M3
+  // particles.
+  shader.setMat4(
+      "uMvp",
+      vp * glm::scale(glm::translate(glm::mat4(1),
+                                     glm::vec3(position.x, 1.06F, position.z)),
+                      glm::vec3(radius, 1, radius)));
+  glBindVertexArray(blastVertexArray_);
+  glDrawArrays(GL_LINE_LOOP, 0, 64);
   glBindVertexArray(0);
 }
 

@@ -4,171 +4,154 @@ Updated: 2026-11-05 (Australia/Sydney).
 
 ## Scope and milestone boundary
 
-ProjectPlan.pdf assigns A core gameplay, progression and game state. The team
-is currently at **Milestone 2**. The checked-in B increment still provides the
-M1 deterministic map, and the starter already supplies camera-relative movement.
-This change fills the missing A M1 combat prerequisites and implements A's M2
-EXP/level-up loop on that map. It does not claim the team's whole M2 is complete.
+ProjectPlan.pdf assigns A gameplay, progression and game state. This M2 increment
+fills A's missing M1 combat prerequisites and implements EXP/weapon selection on
+B's current deterministic M1 map. It does not claim the team's whole M2 is done.
 
-| Milestone | A deliverable | Status in this increment |
+| Milestone | A deliverable | Current status |
 | --- | --- | --- |
-| M1 / Week 7 | Movement, one enemy type spawning/chasing, bullet collision | Existing movement retained and regression-tested; combat implemented |
-| M2 / Week 8 | EXP attraction, level-up/random weapon choice, gameplay state | Implemented with a small functional integration panel |
-| M3 / Week 9 | Weapon-hit particle effects and final integration/evidence | Pending; event interfaces supplied |
+| M1 / Week 7 | Movement, one enemy type, shooting and collision | Implemented; supplied player movement retained and tested |
+| M2 / Week 8 | EXP attraction, level-up/weapon selection, gameplay state | Implemented with temporary English HUD and modal menus |
+| M3 / Week 9 | Weapon-hit particles, final integration and report evidence | Pending; shot/hit/blast interfaces supplied |
 
-B's Day/Night maps and C's final character models/animations, HUD/menu styling,
-instancing and report benchmark evidence remain their own integration work.
+B still owns Day/Night maps and lighting; C owns final models/animation, camera,
+HUD/menu presentation, instancing and comparative benchmark evidence. Coloured
+projectiles and the blast-radius ring are functional proxies, not M3 particles.
 
-## Changes ready to share
+## Current gameplay
 
-- Added CPU-only `core/gameplay/Gameplay`, independent of GLFW, ImGui and OpenGL.
-- Reuse B's live `enemySpawnCandidates()` and `canOccupy()`: spawn one enemy every
-  two simulation seconds, cap at 24, require four blocks of player distance and
-  reject solid blocks or overlapping enemies. Invalid/occupied candidates are
-  skipped. Enemy centres and half-extents match the temporary render proxies.
-- One enemy type has 3 HP and chases at 1.8 blocks/second. A four-neighbour BFS
-  flow field navigates around cover and is rebuilt from live blocks; enemies
-  cannot cut diagonal corners, enter solid blocks, or overlap live actors.
-- Retain the supplied normalized eight-direction player movement and camera.
-  Add player/enemy occupancy checking at the scene integration boundary.
-- Logical window cursor coordinates are unprojected through C's existing camera
-  onto Y=1.45. Left-button press edges fire a horizontal projectile; holding the
-  button does not auto-fire. ImGui capture suppresses gameplay mouse/keyboard
-  input. Shooting does not change the player's movement-facing direction.
-- Swept segment/expanded-AABB collision selects the earliest enemy or wall hit;
-  walls win ties. Bullets expire after two seconds, cannot pierce cover, and keep
-  their launch-time damage/weapon even if a later upgrade changes the weapon.
+- Supplied camera-relative WASD supports eight directions, normalized diagonal
+  speed, block collision and sliding. Scene integration also blocks entry into
+  enemies. Player default speed remains 5 blocks/second.
+- Spawn one enemy every two simulation seconds, cap 24, reuse B's entry metadata,
+  require four blocks of player separation and validate live blocks/actor
+  occupancy. One enemy type has **4 HP** and moves at **4.3 blocks/second**.
+- Enemy navigation uses four-neighbour BFS with live actor occupancy, varied
+  tie directions and persistent waypoints. Blocked routes are replanned; retaining
+  the waypoint through a grid-boundary crossing fixes the previous centre/turn
+  oscillation. Short movement substeps prevent stepping through walls/actors.
+  Crowding still queues naturally in narrow lanes; no actor overlap is allowed.
+- Left-button press edges shoot towards the cursor, independent of player
+  facing. Logical window coordinates are unprojected through C's camera onto
+  Y=1.45. ImGui capture suppresses gameplay input. Holding is not automatic fire.
+- Swept projectile collision prevents tunnelling. Each projectile retains its
+  launch-time weapon/speed/damage. Wall collisions win ties with enemy hits.
+
+| Weapon | Damage | Minimum shot interval | Projectile speed | Behaviour |
+| --- | --- | --- | --- | --- |
+| Balance | 2 | 0.30 s | 24 blocks/s | Stops on first enemy/wall; two hits kill |
+| Laser | 1 | 0.12 s | 40 blocks/s | Pierces enemies, reflects off one wall, stops on the next; four hits kill |
+| Bomb | 4 | 1.20 s | 8 blocks/s | Explodes on first enemy/wall; full damage within 3.5 blocks; one blast kills |
+
+A Laser projectile damages each enemy at most once for its whole lifetime,
+including its reflected path. It can still damage other enemies after passing
+through one. Bomb radius uses enemy-centre distance in X/Z, has no falloff and
+also affects enemies behind cover inside the radius; own bombs do not damage the
+player. A Bomb reaching its three-second lifetime also detonates. Temporary
+rendering uses yellow bullets, cyan laser streaks, orange bombs and a brief
+orange ring marking the full blast radius.
+
 - Kills drop one green EXP proxy. Within four blocks it attracts at seven
-  blocks/second and collects within 0.65 blocks. Magnet attraction intentionally
-  ignores cover; actors and bullets still respect cover. Formal glowing sphere
-  visuals are left to C; these green boxes are integration proxies.
-- Level threshold is `current level * 3` EXP. Crossing it pauses simulation,
-  movement, spawning and countdown and offers two distinct shuffled choices from
-  Balanced, Rapid and Heavy. Choosing equips a weapon, consumes the threshold,
-  increments level, and handles any remaining EXP. Each level adds one damage.
-  Base damage/cooldown/bullet speed: Balanced 2/0.30s/24, Rapid 1/0.10s/40,
-  Heavy 4/0.85s/12 (speed in blocks/second). These are
-  initial tuning values. No separate weapon models or M3 particle styles added.
-- Added 5 player HP, one-second contact-damage invulnerability, a 180-second
-  survival countdown, Won/Lost states, and restart of the current configuration.
-  Loss takes precedence if health and countdown reach zero in the same update.
-- Added `GameplayUi` as a replaceable functional panel for HP/time/kills/EXP,
-  weapon offers and outcome text. Existing restart menu action now resets A's
-  state and the player to B's spawn; it preserves the current map.
+  blocks/second, collects within 0.65 blocks and intentionally ignores cover.
+- Threshold is `current level * 3` EXP. Level-up freezes movement, enemies,
+  spawning and timer and opens a centred, dimmed-background English modal.
+  **Two distinct weapons are randomly offered** from Balance/Laser/Bomb.
+  Selection equips one, consumes EXP, increments level and resumes (or offers
+  another level if enough EXP remains). Damage no longer grows with level, so
+  the requested 2/4/1 hit counts remain valid at every level.
+- Player has 5 HP and one-second invulnerability after contact damage. Survive
+  180 seconds to win; lose at zero HP. Loss wins a same-frame tie. Terminal
+  states stop simulation and show a centred **VICTORY** or **DEFEAT** modal with
+  kills, level, survival time and **Play again**. Restart resets player/gameplay
+  together, preserving the current map. None of these menus depend on saved HUD
+  sizes; choices cannot be dismissed into an unexplained paused state.
 
 ## Interfaces for teammates
 
-### Member B: map/layout integration
+### Member B: map and collision
 
-`Gameplay::update(dt, playerPosition, world, optionalShotTarget)` uses the
-current world without taking ownership of it. `spawnEnemy(position, player,
-world)` validates solid clearance, distance and current enemy occupancy.
-`enemyHalfExtents()` returns `(0.35, 0.44, 0.35)`; centres rest at Y=1.45.
-Map edits are observed on the next simulation update. Continue calling
-`ArenaScene::rebuildWorldGeometry()` after block edits; A never modifies blocks.
+`Gameplay::update(dt, playerPosition, world, optionalShotTarget)` reads the live
+world without owning or editing it. `spawnEnemy(position, player, world)` checks
+solid clearance, distance, enemy occupancy and cap. `enemyHalfExtents()` is
+`(0.35, 0.44, 0.35)`; actor centres rest at Y=1.45. Live map changes are checked
+while moving/replanning. Continue calling `ArenaScene::rebuildWorldGeometry()`
+after block edits. Keep the player spawn clear for restart.
 
-Day/Night selection remains disabled: only the M1 map is present. When B adds
-layouts, agree with C on loading `ArenaWorld(layout)`, rebuilding the mesh and
-resetting gameplay/player together. Do not reuse old spawn metadata for a new
-layout. Restart expects the current map's player spawn to remain clear.
+Day/Night selection remains disabled until distinct layouts are supplied.
+Coordinate with C on replacing `ArenaWorld(layout)`, rebuilding the mesh and
+resetting gameplay/player together. Do not retain old spawn metadata for a new
+layout. Bomb blasts currently do not destroy map blocks.
 
-### Member C: rendering, animation, camera, HUD and integration
+### Member C: models, animation, HUD and system integration
 
-- `ArenaScene::gameplay()` exposes the simulation. `stats()` provides health,
-  kills, EXP, level, selected weapon, remaining time and `Phase`.
-- Read-only `enemies()`, `bullets()` and `orbs()` snapshots supply world positions;
-  enemy IDs remain stable until reset. Replace `ArenaRenderer::drawProxy` with
-  hierarchical actors/instanced draws without changing gameplay ownership.
-- `shots()` supplies launch position/direction/weapon for recoil animation.
-  `hits()` supplies position/enemy ID/killed/weapon for hit reactions and A's M3
-  particle work. Both are frame-local, cleared on each `update`; consume before
-  the next update and do not keep references across updates/reset.
-- `upgradeChoices()` and `chooseUpgrade(index)` form the menu contract. Upgrade
-  selection belongs in UI; simulation owns EXP, equipment and the paused phase.
-  Replace `GameplayUi` with the planned HUD/menu while preserving that contract.
+- `ArenaScene::gameplay()` exposes simulation. `stats()` supplies phase, HP,
+  timer, level, EXP, selected weapon and kills.
+- Read-only `enemies()`, `bullets()` and `orbs()` snapshots provide positions.
+  Enemy IDs remain stable until reset; navigation waypoints are gameplay-owned.
+  Replace `ArenaRenderer::drawProxy` with final actors/instances as needed.
+- `shots()` contains launch position/direction/weapon; `hits()` contains impact
+  position/enemy ID/killed/weapon. Both clear on every simulation update; consume
+  before the next update and never retain references across update/reset.
+- `explosions()` contains active blast positions, radii and ages (0.4-second
+  lifetime). `drawBlast` currently draws a functional circle. A's M3 particles
+  can use the same hit/blast data without changing collision ownership.
+- `weaponProfile` and `weaponDescription` share the simulation/UI contract.
+  Current enum values are `Balance`, `Laser`, `Bomb`; `Bullet` also exposes
+  reflection count and already-hit IDs for debugging.
+- `upgradeChoices()`/`chooseUpgrade(index)` own random offers and the resume
+  boundary. C can replace `GameplayUi` with the final menu while keeping it.
+  `drawGameplayUi` now returns a restart request; the caller must invoke
+  `ArenaScene::resetGameplay()` so both simulation and player reset together.
 - `aimOnPlane` uses logical cursor/window dimensions and the actual framebuffer
-  view-projection, including HiDPI scaling. Keep the same projection when
-  changing C's camera. Movement-facing and mouse aim remain independent.
-- Benchmark timing boundaries are unchanged. Simulation is frozen during a run.
-  Command-line `CRAFT_BENCHMARK=1` starts with no actors and retains B's
-  `milestone1-voxel-arena` label. An in-game run freezes the current gameplay
-  snapshot and uses `milestone2-gameplay-frozen`; counts include proxy geometry.
-  This is smoke validation, not baseline-versus-instancing performance evidence.
+  view-projection; preserve that camera/HiDPI convention for a future crosshair.
+- Benchmark timing boundaries remain unchanged. Command-line benchmark starts
+  before spawning and freezes the static scene under `milestone1-voxel-arena`.
+  In-game benchmark freezes the current actor snapshot under
+  `milestone2-gameplay-frozen`; draw-call counts include blast rings. This is
+  smoke evidence, not baseline-versus-instancing performance evidence.
 
 ## Validation
 
-On this Debian/Linux cloud instance, GCC 14.2, CMake 3.31, OpenGL via Mesa
-llvmpipe (software rendering):
+Linux cloud instance: GCC 14.2, CMake 3.31, Mesa llvmpipe software rendering.
 
 ```bash
-# Cloud instance local dependency activation; not needed on normal system installs
-source /workspace/.setup-9415/env.sh
+source /workspace/.setup-9415/env.sh  # cloud-local dependencies only
 cmake --build build --parallel 4
 ctest --test-dir build --output-on-failure
 xvfb-run -a -s '-screen 0 1280x720x24' \
   env LIBGL_ALWAYS_SOFTWARE=1 CRAFT_BENCHMARK=1 ./build/Craft
 ```
 
-- Full application/test build passed.
-- CTest: 13/13 cases passed, including B's original world tests. New coverage:
-  live spawn clearance/distance/occupancy/cap; chase around cover; swept bullet
-  hits and cover blocking; fire cooldown/invalid aim; EXP attraction/collection;
-  randomized distinct offers; pause/selection/reset; contact damage and win/loss;
-  movement regression; camera-to-world aim round-trip with HiDPI dimensions.
-- OpenGL command-line smoke: 60 warm-up + 240 measured frames, exit 0, static
-  M1 map workload at 1920x1080. This does not validate GPU hardware performance.
-- Xvfb/XTest interaction smoke: Enter transitioned into the arena, injected WASD
-  and eight mouse clicks, rendered enemies/HP/countdown panel, then Escape exited
-  0. Screenshot inspected. This is automated input/render validation, not a full
-  manual playthrough or visual acceptance of the progression menu.
+- Full application/test build passed; **18/18 CTest cases passed**. Coverage
+  includes B's map tests, movement/aim, spawning, crowd rerouting through cover,
+  enemy speed, EXP/selection/reset, terminal states, weapon speeds/cooldowns,
+  exact 2/4/1 hit counts after selection, laser penetration/one reflection and
+  bomb impact/AOE with full damage and out-of-range survival.
+- Separate ImGui interaction harness exercised actual upgrade and victory/defeat
+  modals at 640x480, 1280x720 and 1920x1080, even with Arena status collapsed:
+  menus fit without scrolling, outside clicks do not dismiss the upgrade,
+  choosing resumes, and Play again requests a reset and closes the result menu.
+- Xvfb/XTest input/render smoke injected Enter, WASD, mouse clicks and Escape;
+  screenshots inspected and executable exited 0. The actual defeat dialog and
+  Play again were exercised: HP reset to 5, time to roughly 180, kills/EXP to
+  zero and player to the central spawn. The command-line benchmark
+  completed 60 warm-up + 240 measured frames and exited 0.
 
-For a normal workstation: `cmake -S . -B build -DBUILD_TESTING=ON`,
-`cmake --build build`, `ctest --test-dir build --output-on-failure`, then
-`./build/Craft`. Enter starts; WASD moves; click towards red enemies, approach
-EXP, choose a weapon on level-up, and use Restart current configuration.
+For a workstation: configure `cmake -S . -B build -DBUILD_TESTING=ON`, build/test,
+then run `./build/Craft` (Windows executable path depends on the generator).
+On Windows, the earlier C++20 designated initializer in `SceneBenchmark` was
+replaced with C++17-compatible assignments; no standard upgrade is required.
 
-Manual full-loop balance/usability checks, macOS/Windows portability and CSE/VLAB
-validation are still pending. Multiple enemy models, polished EXP visuals,
-Day/Night maps, final UI, and all three M3 challenge tasks are not claimed here.
+Manual Windows playtesting/balance, CSE/VLAB and final visual acceptance remain
+pending. Day/Night maps, final models/HUD, crosshair presentation and M3 particle,
+normal-mapping and BRDF challenges are not claimed here.
 
-## GitLab/team handoff
+## Team handoff
 
-Suggested update:
-
-> Member A / M2: added the missing M1 enemy/spawn/chase and click-to-shoot combat
-> on B's arena, then EXP drops/magnet collection and paused randomized weapon
-> selection. Added HP, survival outcome and restart, with temporary render/UI
-> proxies. B's collision/spawn contracts are reused; C can consume snapshots and
-> shot/hit events for models, HUD, animation and instancing. Particle effects are
-> deferred to M3. Linux build, 13 CTest cases and OpenGL/input smoke checks passed;
-> final visual acceptance and CSE verification remain pending.
-
-
-## Follow-up: visible upgrade selection and distinct weapons
-
-Replaced the HUD-embedded upgrade buttons with a centred, dimmed-background,
-English-only modal. It explicitly says `GAME PAUSED` and asks the player to choose
-a weapon to resume. Both full-width choices show post-upgrade damage, shot
-interval and projectile speed. The modal does not use saved HUD sizes or expose
-a close button that could leave gameplay paused without a selection. Arena status
-also auto-sizes; C can replace the presentation while retaining `chooseUpgrade`.
-
-`weaponProfile(Weapon)` is now the shared source for simulation and UI:
-
-| Weapon | Base damage | Minimum shot interval | Bullet speed |
-| --- | --- | --- | --- |
-| Balanced | 2 | 0.30 seconds | 24 blocks/second |
-| Rapid | 1 | 0.10 seconds | 40 blocks/second |
-| Heavy | 4 | 0.85 seconds | 12 blocks/second |
-
-Enemies now have 3 HP, so at level 1 the base profiles would require 2 Balanced,
-3 Rapid or 1 Heavy hit. Each earned upgrade still adds one damage. Shooting
-remains click-to-shoot, with these intervals limiting accepted clicks; holding
-is not automatic fire. Projectiles retain their launch-time speed and damage.
-
-Validation: build and 13 CTest cases passed, including firing every weapon via
-the real upgrade boundary and checking projectile speed/damage/cooldown. A
-separate ImGui interaction harness exercised the actual modal: complete offers
-visible without scrolling, outside clicks do not dismiss, selecting advances
-level and resumes the countdown. Tested with Arena status collapsed at 640x480,
-1280x720 and 1920x1080. Windows visual confirmation remains a local follow-up.
+> Member A / M2: combat and EXP/selection run on B's arena. Added explicit
+> upgrade/result modals and full-scene restart, faster occupancy-aware enemy
+> navigation and Balance/Laser/Bomb behaviours. Level-up offers two random
+> distinct weapons. B's collision/spawn interfaces are preserved; C can consume
+> actor/shot/hit/blast snapshots for final presentation and instancing. Build,
+> 18 tests and UI/render checks passed; Windows balance and CSE acceptance remain
+> follow-up work. M3 particles are still deferred.

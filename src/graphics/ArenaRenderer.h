@@ -2,7 +2,6 @@
 
 #include <array>
 #include <filesystem>
-
 #include <glm/mat4x4.hpp>
 #include <glm/vec3.hpp>
 
@@ -42,7 +41,9 @@ class ArenaRenderer {
   // renderer using Gameplay snapshots without changing simulation ownership.
   void drawProxy(const Shader& shader, const glm::mat4& viewProjection,
                  const glm::vec3& position, const glm::vec3& halfExtents,
-                 const glm::vec3& color) const;
+                 const glm::vec3& color, float yawRadians = 0) const;
+  void drawBlast(const Shader& shader, const glm::mat4& viewProjection,
+                 const glm::vec3& position, float radius, float age) const;
 
   [[nodiscard]] int worldVertexCount() const noexcept;
 
@@ -52,6 +53,8 @@ class ArenaRenderer {
     int vertexCount = 0;
   };
 
+  unsigned int blastVertexArray_ = 0;
+  unsigned int blastVertexBuffer_ = 0;
   Texture playerTexture_;
   unsigned int worldVertexArray_ = 0;
   unsigned int worldVertexBuffer_ = 0;

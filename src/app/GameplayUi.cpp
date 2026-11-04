@@ -5,7 +5,7 @@
 #include "core/gameplay/Gameplay.h"
 #include "imgui.h"
 namespace craft::app {
-void drawGameplayUi(gameplay::Gameplay& game) {
+bool drawGameplayUi(gameplay::Gameplay& game) {
   const auto& s = game.stats();
   ImGui::SetNextWindowPos(ImVec2(12, 540), ImGuiCond_FirstUseEver);
   ImGui::Begin("Arena status", nullptr, ImGuiWindowFlags_AlwaysAutoResize);
@@ -16,8 +16,7 @@ void drawGameplayUi(gameplay::Gameplay& game) {
   ImGui::Text("Weapon: %s", gameplay::weaponName(s.weapon));
   const auto equipped = gameplay::weaponProfile(s.weapon);
   ImGui::Text("Damage %d | Shot interval %.2fs | Bullet speed %.0f",
-              equipped.baseDamage + s.level - 1, equipped.shotCooldown,
-              equipped.bulletSpeed);
+              equipped.baseDamage, equipped.shotCooldown, equipped.bulletSpeed);
   if (s.phase == gameplay::Phase::ChoosingUpgrade)
     ImGui::TextUnformatted("LEVEL UP - choose a weapon in the centre dialog.");
   if (s.phase == gameplay::Phase::Won)
@@ -29,8 +28,13 @@ void drawGameplayUi(gameplay::Gameplay& game) {
   // C: this temporary modal owns presentation only. Keep chooseUpgrade as the
   // resume boundary when replacing it with the final level-up menu. It lives
   // outside Arena status so saved/collapsed HUD sizes cannot hide the choices.
-  if (s.phase != gameplay::Phase::ChoosingUpgrade) return;
-  constexpr const char* popup = "LEVEL UP - Choose your weapon";
+  if (s.phase == gameplay::Phase::Playing) return false;
+  const bool upgrading = s.phase == gameplay::Phase::ChoosingUpgrade;
+  const char* popup = upgrading ? "LEVEL UP - Choose your weapon"
+                      : s.phase == gameplay::Phase::Won
+                          ? "VICTORY - Arena survived"
+                          : "DEFEAT - Run ended";
+  bool restartRequested = false;
   if (!ImGui::IsPopupOpen(popup)) ImGui::OpenPopup(popup);
   const ImGuiViewport* viewport = ImGui::GetMainViewport();
   const float width =
@@ -47,27 +51,46 @@ void drawGameplayUi(gameplay::Gameplay& game) {
                              ImGuiWindowFlags_AlwaysAutoResize |
                                  ImGuiWindowFlags_NoMove |
                                  ImGuiWindowFlags_NoSavedSettings)) {
-    ImGui::Text("Level %d complete!", s.level);
-    ImGui::TextWrapped("GAME PAUSED - enemies and the countdown are stopped.");
-    ImGui::TextWrapped(
-        "Choose one weapon below to upgrade and resume playing.");
-    ImGui::Separator();
-    const auto choices = game.upgradeChoices();
-    for (std::size_t i = 0; i < choices.size(); ++i) {
-      ImGui::PushID(static_cast<int>(i));
-      if (ImGui::Button(gameplay::weaponName(choices[i]), ImVec2(-1, 44))) {
-        if (game.chooseUpgrade(i)) ImGui::CloseCurrentPopup();
-        ImGui::PopID();
-        break;
+    if (!upgrading) {
+      ImGui::TextUnformatted(s.phase == gameplay::Phase::Won
+                                 ? "VICTORY! You survived the arena."
+                                 : "DEFEAT. Your health reached zero.");
+      ImGui::TextWrapped(
+          "This run has ended. Choose Play again to restart from the arena "
+          "spawn.");
+      ImGui::Separator();
+      ImGui::Text("Kills: %d | Level: %d | Time survived: %.1fs", s.kills,
+                  s.level, 180.F - s.remainingSeconds);
+      if (ImGui::Button("Play again", ImVec2(-1, 44))) {
+        ImGui::CloseCurrentPopup();
+        restartRequested = true;
       }
-      const auto profile = gameplay::weaponProfile(choices[i]);
-      ImGui::Text("After upgrade: %d damage | %.2fs shot interval",
-                  profile.baseDamage + s.level, profile.shotCooldown);
-      ImGui::Text("Bullet speed: %.0f blocks/sec", profile.bulletSpeed);
-      ImGui::Spacing();
-      ImGui::PopID();
+    } else {
+      ImGui::Text("Level %d complete!", s.level);
+      ImGui::TextWrapped(
+          "GAME PAUSED - enemies and the countdown are stopped.");
+      ImGui::TextWrapped(
+          "Choose one weapon below to upgrade and resume playing.");
+      ImGui::Separator();
+      const auto choices = game.upgradeChoices();
+      for (std::size_t i = 0; i < choices.size(); ++i) {
+        ImGui::PushID(static_cast<int>(i));
+        if (ImGui::Button(gameplay::weaponName(choices[i]), ImVec2(-1, 44))) {
+          if (game.chooseUpgrade(i)) ImGui::CloseCurrentPopup();
+          ImGui::PopID();
+          break;
+        }
+        const auto profile = gameplay::weaponProfile(choices[i]);
+        ImGui::TextWrapped("%s", gameplay::weaponDescription(choices[i]));
+        ImGui::Text("Damage: %d | %.2fs shot interval", profile.baseDamage,
+                    profile.shotCooldown);
+        ImGui::Text("Bullet speed: %.0f blocks/sec", profile.bulletSpeed);
+        ImGui::Spacing();
+        ImGui::PopID();
+      }
     }
     ImGui::EndPopup();
   }
+  return restartRequested;
 }
 }  // namespace craft::app

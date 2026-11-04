@@ -11,7 +11,7 @@ class ArenaWorld;
 }
 namespace craft::gameplay {
 
-enum class Weapon { Balanced, Rapid, Heavy };
+enum class Weapon { Balance, Laser, Bomb };
 struct WeaponProfile {
   int baseDamage;
   float shotCooldown;
@@ -22,14 +22,22 @@ struct WeaponProfile {
 struct Enemy {
   std::uint32_t id;
   glm::vec3 position;
-  int health = 3;
+  int health = 4;
+  std::optional<glm::vec3> waypoint;
 };
 struct Bullet {
   glm::vec3 position;
   glm::vec3 velocity;
   float life = 2;
   int damage = 1;
-  Weapon weapon = Weapon::Balanced;
+  Weapon weapon = Weapon::Balance;
+  int reflections = 0;
+  std::vector<std::uint32_t> hitEnemies;
+};
+struct Explosion {
+  glm::vec3 position;
+  float radius;
+  float age = 0;
 };
 struct ExperienceOrb {
   glm::vec3 position;
@@ -53,7 +61,7 @@ struct Stats {
   int level = 1;
   int kills = 0;
   float remainingSeconds = 180;
-  Weapon weapon = Weapon::Balanced;
+  Weapon weapon = Weapon::Balance;
   Phase phase = Phase::Playing;
 };
 
@@ -82,12 +90,22 @@ class Gameplay {
   // can consume position/weapon information. Read before the next update.
   [[nodiscard]] const std::vector<HitEvent>& hits() const { return hits_; }
   [[nodiscard]] const std::vector<ShotEvent>& shots() const { return shots_; }
+  // C: short-lived blast rings, separate from M3 particle effects.
+  [[nodiscard]] const std::vector<Explosion>& explosions() const {
+    return explosions_;
+  }
+  static constexpr float enemySpeed() { return 4.3F; }  // player default: 5
+  static constexpr float blastRadius() { return 3.5F; }
   static glm::vec3 enemyHalfExtents() { return {0.35F, 0.44F, 0.35F}; }
 
  private:
   void offerUpgrade();
+  void damageEnemy(Enemy& enemy, int damage, const glm::vec3& impact,
+                   Weapon weapon);
+  void explode(const glm::vec3& position, int damage);
   Stats stats_;
   std::vector<Enemy> enemies_;
+  std::vector<Explosion> explosions_;
   std::vector<Bullet> bullets_;
   std::vector<ExperienceOrb> orbs_;
   std::vector<HitEvent> hits_;
@@ -98,4 +116,5 @@ class Gameplay {
   float spawnClock_ = 0, shotClock_ = 0, hurtClock_ = 0;
 };
 const char* weaponName(Weapon weapon);
+const char* weaponDescription(Weapon weapon);
 }  // namespace craft::gameplay

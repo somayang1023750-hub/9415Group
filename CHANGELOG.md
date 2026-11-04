@@ -59,3 +59,19 @@ UVs, materials, and lighting remain M2 work; normal mapping remains M3 work.
   between them. Set enemy HP to 3 to distinguish required hits.
 - Build and all 13 CTest cases passed; separate ImGui interaction checks verified
   the modal and resume flow at 640x480, 1280x720 and 1920x1080.
+
+
+## - 2026-11-05 — Outcome menus, navigation and Balance/Laser/Bomb
+
+- Added centred English victory/defeat modals with run statistics and a Play
+  again request, routed through ArenaScene for full player/gameplay reset.
+- Replaced turn-centre oscillation with persistent waypoints and live-occupancy
+  rerouting. Enemy speed is now 4.3 blocks/s, just below the player's default 5.
+- Replaced the old weapon pool with Balance/Laser/Bomb. Laser pierces enemies
+  and reflects once; Bomb detonates on enemies/cover with full 3.5-block radial
+  damage. Added distinct projectile proxies and a short-lived blast-radius ring.
+- Enemy HP is 4 and damage is fixed at 2/1/4, preserving two/four/one hit kills
+  after leveling. Every selection page offers two random distinct weapons.
+- Build and 18 CTest cases passed, including navigation, exact hit counts,
+  penetration, reflection, impact explosions and radial damage. UI checks cover
+  upgrade/results and restart at three window sizes. Updated A's handoff.

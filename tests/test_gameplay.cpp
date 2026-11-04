@@ -89,7 +89,7 @@ TEST_CASE(
     REQUIRE(game.shots().empty());
   }
 }
-TEST_CASE("EXP magnet, random upgrade choices, pause and restart form a loop",
+TEST_CASE("EXP magnet, weapon choices, pause and restart form a loop",
           "[gameplay]") {
   auto world = emptyWorld();
   Gameplay game;
@@ -196,18 +196,18 @@ TEST_CASE("Weapon profiles have distinct cadence, projectile speed and damage",
           "[weapons]") {
   using craft::gameplay::Weapon;
   using craft::gameplay::weaponProfile;
-  const auto heavy = weaponProfile(Weapon::Heavy);
-  const auto balanced = weaponProfile(Weapon::Balanced);
-  const auto rapid = weaponProfile(Weapon::Rapid);
+  const auto heavy = weaponProfile(Weapon::Bomb);
+  const auto balanced = weaponProfile(Weapon::Balance);
+  const auto rapid = weaponProfile(Weapon::Laser);
   REQUIRE(heavy.shotCooldown > balanced.shotCooldown * 2);
   REQUIRE(balanced.shotCooldown > rapid.shotCooldown * 2);
   REQUIRE(rapid.bulletSpeed > balanced.bulletSpeed);
-  REQUIRE(balanced.bulletSpeed == heavy.bulletSpeed * 2);
+  REQUIRE(balanced.bulletSpeed > heavy.bulletSpeed * 2);
   REQUIRE(heavy.baseDamage > balanced.baseDamage);
   REQUIRE(balanced.baseDamage > rapid.baseDamage);
   auto world = emptyWorld();
   // Exercise every profile through the actual upgrade and firing boundary.
-  for (auto desired : {Weapon::Balanced, Weapon::Rapid, Weapon::Heavy}) {
+  for (auto desired : {Weapon::Balance, Weapon::Laser, Weapon::Bomb}) {
     bool verified = false;
     for (unsigned seed = 0; seed < 20 && !verified; ++seed) {
       Gameplay game(seed);
@@ -231,7 +231,7 @@ TEST_CASE("Weapon profiles have distinct cadence, projectile speed and damage",
         const auto profile = weaponProfile(desired);
         REQUIRE(glm::length(game.bullets()[0].velocity) ==
                 Catch::Approx(profile.bulletSpeed));
-        REQUIRE(game.bullets()[0].damage == profile.baseDamage + 1);
+        REQUIRE(game.bullets()[0].damage == profile.baseDamage);
         REQUIRE(game.bullets()[0].weapon == desired);
         game.update(.01F, player, world, glm::vec3(20, 1.45F, 16));
         REQUIRE(game.shots().empty());
@@ -241,4 +241,167 @@ TEST_CASE("Weapon profiles have distinct cadence, projectile speed and damage",
     }
     REQUIRE(verified);
   }
+}
+
+namespace {
+using craft::gameplay::Weapon;
+Gameplay equip(Weapon desired) {
+  const auto world = emptyWorld();
+  for (unsigned seed = 0; seed < 30; ++seed) {
+    Gameplay game(seed);
+    for (int kill = 0; kill < 3; ++kill) {
+      const int before = game.stats().kills;
+      REQUIRE(game.spawnEnemy({16, 1.45F, 22}, player, world));
+      for (int i = 0; i < 40 && game.stats().kills == before; ++i)
+        game.update(.1F, player, world, game.enemies().front().position);
+      REQUIRE(game.orbs().size() == 1);
+      const auto collector = game.orbs()[0].position;
+      game.update(.1F, collector, world);
+    }
+    const auto choices = game.upgradeChoices();
+    for (std::size_t i = 0; i < choices.size(); ++i)
+      if (choices[i] == desired) {
+        REQUIRE(game.chooseUpgrade(i));
+        for (int frame = 0; frame < 35; ++frame)
+          game.update(.1F, player, world);
+        return game;
+      }
+  }
+  FAIL("Requested weapon was never offered");
+  return Gameplay{};
+}
+}  // namespace
+TEST_CASE("Laser pierces enemies once each and reflects off exactly one wall",
+          "[weapons][laser]") {
+  auto world = emptyWorld();
+  auto game = equip(Weapon::Laser);
+  const glm::vec3 shooter(4.5F, 1.45F, 16.5F);
+  SECTION(
+      "One shot damages several enemies, not repeatedly while inside them") {
+    // Narrow lane keeps the moving targets in the beam while allowing the
+    // laser to pass through all of them; open-space AI deliberately sidesteps
+    // queues.
+    for (int x = 6; x <= 23; ++x)
+      for (int z : {15, 17})
+        world.setBlock(x, 1, z, craft::world::BlockType::Obstacle);
+    for (float x : {10.5F, 14.5F, 18.5F})
+      REQUIRE(game.spawnEnemy({x, 1.45F, 16.5F}, shooter, world));
+    game.update(.01F, shooter, world, glm::vec3(27, 1.45F, 16.5F));
+    for (int i = 0; i < 60; ++i) game.update(.01F, shooter, world);
+    REQUIRE(game.enemies().size() == 3);
+    for (const auto& enemy : game.enemies()) REQUIRE(enemy.health == 3);
+    for (int i = 0; i < 35; ++i) game.update(.01F, shooter, world);
+    for (const auto& enemy : game.enemies()) REQUIRE(enemy.health == 3);
+  }
+  SECTION("Reflection preserves speed and stops on the second obstacle") {
+    world.setBlock(20, 1, 16, craft::world::BlockType::Obstacle);
+    world.setBlock(12, 1, 16, craft::world::BlockType::Obstacle);
+    const glm::vec3 origin(16.5F, 1.45F, 16.5F);
+    game.update(.1F, origin, world, glm::vec3(25, 1.45F, 16.5F));
+    REQUIRE(game.bullets().size() == 1);
+    REQUIRE(game.bullets()[0].reflections == 1);
+    REQUIRE(game.bullets()[0].velocity.x == Catch::Approx(-40));
+    REQUIRE(game.bullets()[0].position.x < 19.9F);
+    for (int i = 0; i < 3; ++i) game.update(.1F, origin, world);
+    REQUIRE(game.bullets().empty());
+  }
+}
+TEST_CASE("Bombs explode on enemy or cover with full radial damage",
+          "[weapons][bomb]") {
+  auto world = emptyWorld();
+  auto game = equip(Weapon::Bomb);
+  const glm::vec3 shooter(4.5F, 1.45F, 16.5F);
+  SECTION("Cover triggers an explosion affecting enemies behind it") {
+    world.setBlock(10, 1, 16, craft::world::BlockType::Obstacle);
+  }
+  SECTION("An enemy directly triggers the explosion") {}
+  REQUIRE(game.spawnEnemy({11.5F, 1.45F, 16.5F}, shooter, world));
+  REQUIRE(game.spawnEnemy({11.5F, 1.45F, 18.5F}, shooter, world));
+  REQUIRE(game.spawnEnemy({24.5F, 1.45F, 25.5F}, shooter, world));
+  const int baseline = game.stats().kills;
+  game.update(.01F, shooter, world, glm::vec3(26, 1.45F, 16.5F));
+  for (int i = 0; i < 150 && game.explosions().empty(); ++i)
+    game.update(.01F, shooter, world);
+  REQUIRE(game.explosions().size() == 1);
+  REQUIRE(game.explosions()[0].radius == Gameplay::blastRadius());
+  REQUIRE(game.stats().kills == baseline + 2);
+  REQUIRE(game.enemies().size() == 1);
+  REQUIRE(game.enemies()[0].health == 4);
+  REQUIRE(game.bullets().empty());
+  REQUIRE(game.orbs().size() == 2);
+  for (int i = 0; i < 45; ++i) game.update(.01F, shooter, world);
+  REQUIRE(game.explosions().empty());
+  REQUIRE(game.stats().kills == baseline + 2);
+}
+TEST_CASE(
+    "Weapon hit counts stay two four and one after switching and leveling",
+    "[weapons]") {
+  for (auto weapon : {Weapon::Balance, Weapon::Laser, Weapon::Bomb}) {
+    auto game = equip(weapon);
+    const auto world = emptyWorld();
+    const glm::vec3 shooter(4.5F, 1.45F, 16.5F);
+    REQUIRE(game.spawnEnemy({14.5F, 1.45F, 16.5F}, shooter, world));
+    const int expected = weapon == Weapon::Balance ? 2
+                         : weapon == Weapon::Laser ? 4
+                                                   : 1;
+    const int baseline = game.stats().kills;
+    int fired = 0;
+    for (int frame = 0; frame < 250 && game.stats().kills == baseline;
+         ++frame) {
+      std::optional<glm::vec3> aim;
+      bool ready = game.bullets().empty();
+      if (weapon == Weapon::Laser && !game.bullets().empty())
+        ready = !game.bullets().back().hitEnemies.empty();
+      if (ready && !game.enemies().empty()) aim = game.enemies()[0].position;
+      game.update(.01F, shooter, world, aim);
+      fired += static_cast<int>(game.shots().size());
+    }
+    REQUIRE(game.stats().kills == baseline + 1);
+    REQUIRE(fired == expected);
+  }
+}
+TEST_CASE("Enemy waypoints stay stable through turns and crowds reroute",
+          "[gameplay][navigation]") {
+  auto layout = craft::world::makeMilestoneOneLayout();
+  layout.obstacles = {{13, 18, 6, 1, 2}};
+  layout.enemySpawnCandidates.clear();
+  craft::world::ArenaWorld world(layout);
+  Gameplay game;
+  for (float x : {14.5F, 15.5F, 16.5F, 17.5F})
+    REQUIRE(game.spawnEnemy({x, 1.45F, 23.5F}, player, world));
+  for (int frame = 0; frame < 50; ++frame) {
+    game.update(.1F, player, world);
+    for (const auto& e : game.enemies()) {
+      REQUIRE(world.canOccupy(e.position, Gameplay::enemyHalfExtents()));
+      for (const auto& other : game.enemies())
+        if (e.id != other.id)
+          REQUIRE((std::abs(e.position.x - other.position.x) >= .699F ||
+                   std::abs(e.position.z - other.position.z) >= .699F));
+    }
+  }
+  int arrived = 0;
+  for (const auto& e : game.enemies())
+    if (e.position.z < 18) ++arrived;
+  REQUIRE(arrived >= 3);
+  const auto old = game.enemies();
+  const glm::vec3 movedPlayer(26.5F, 1.45F, 16.5F);
+  for (int frame = 0; frame < 30; ++frame) game.update(.1F, movedPlayer, world);
+  int progressed = 0;
+  for (std::size_t i = 0; i < old.size(); ++i)
+    if (glm::length(game.enemies()[i].position - old[i].position) > 3)
+      ++progressed;
+  REQUIRE(progressed >= 3);
+}
+TEST_CASE("Enemy speed is slightly below the default player speed",
+          "[gameplay]") {
+  const auto world = emptyWorld();
+  Gameplay game;
+  const glm::vec3 origin(16.5F, 1.45F, 24.5F), target(16.5F, 1.45F, 16.5F);
+  REQUIRE(game.spawnEnemy(origin, target, world));
+  game.update(.1F, target, world);
+  REQUIRE(glm::length(game.enemies()[0].position - origin) ==
+          Catch::Approx(.43F).margin(.001));
+  craft::app::PlayerController controller;
+  REQUIRE(Gameplay::enemySpeed() < controller.moveSpeed());
+  REQUIRE(Gameplay::enemySpeed() > controller.moveSpeed() * .8F);
 }

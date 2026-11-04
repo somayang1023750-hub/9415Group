@@ -49,9 +49,20 @@ void ArenaScene::render(const graphics::Shader& shader, int framebufferWidth,
     renderer_.drawProxy(shader, viewProjection, enemy.position,
                         gameplay::Gameplay::enemyHalfExtents(),
                         {0.9F, 0.2F, 0.2F});
-  for (const auto& bullet : gameplay_.bullets())
+  for (const auto& bullet : gameplay_.bullets()) {
+    const bool laser = bullet.weapon == gameplay::Weapon::Laser;
+    const bool bomb = bullet.weapon == gameplay::Weapon::Bomb;
     renderer_.drawProxy(shader, viewProjection, bullet.position,
-                        glm::vec3(0.10F), {1.0F, 0.9F, 0.2F});
+                        laser ? glm::vec3(0.06F, 0.06F, 0.55F)
+                              : glm::vec3(bomb ? 0.22F : 0.10F),
+                        laser  ? glm::vec3(0.1F, 1.F, 1.F)
+                        : bomb ? glm::vec3(1.F, 0.4F, 0.1F)
+                               : glm::vec3(1.F, 0.9F, 0.2F),
+                        std::atan2(bullet.velocity.x, bullet.velocity.z));
+  }
+  for (const auto& blast : gameplay_.explosions())
+    renderer_.drawBlast(shader, viewProjection, blast.position, blast.radius,
+                        blast.age);
   for (const auto& orb : gameplay_.orbs())
     renderer_.drawProxy(shader, viewProjection, orb.position, glm::vec3(0.14F),
                         {0.2F, 1.0F, 0.3F});
