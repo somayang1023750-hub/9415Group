@@ -4,6 +4,7 @@
 
 #include "app/FollowCamera.h"
 #include "app/PlayerController.h"
+#include "core/gameplay/Gameplay.h"
 #include "graphics/ArenaRenderer.h"
 #include "world/ArenaWorld.h"
 
@@ -20,7 +21,13 @@ class ArenaScene {
  public:
   explicit ArenaScene(const std::filesystem::path& playerTexturePath);
 
-  void update(const MovementInput& input, float deltaSeconds);
+  void update(const MovementInput& input, float deltaSeconds,
+              std::optional<glm::vec3> shotTarget = std::nullopt);
+  void resetGameplay();
+  [[nodiscard]] gameplay::Gameplay& gameplay() noexcept { return gameplay_; }
+  [[nodiscard]] const gameplay::Gameplay& gameplay() const noexcept {
+    return gameplay_;
+  }
   void render(const graphics::Shader& shader, int framebufferWidth,
               int framebufferHeight) const;
   void rebuildWorldGeometry();
@@ -33,6 +40,7 @@ class ArenaScene {
   [[nodiscard]] int worldVertexCount() const noexcept;
 
  private:
+  gameplay::Gameplay gameplay_;
   world::ArenaWorld world_;
   PlayerController player_;
   FollowCamera camera_;
