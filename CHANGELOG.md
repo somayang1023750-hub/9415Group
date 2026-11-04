@@ -4,6 +4,22 @@ This file records the changes made to the starter code and explain why the issue
 
 
 
+## Current Member A status — 2026-11-05
+
+Member A accepted the current gameplay after Windows/Visual Studio iteration.
+Current code baseline is `91e0e6f`: Balance/Laser/Bomb, random two-choice level-up
+with full healing, explicit result/restart menus, crowd rerouting, smaller
+actors and local overhead following are documented in
+[Member A progress](docs/member-a-progress.md). The current automated suite has
+21 passing cases on Linux; CSE and full platform acceptance remain outstanding.
+
+This documentation consolidation adds the
+[validation and replay guide](docs/member-a-validation.md), aligns README with
+current controls/values/Windows output paths, and records attribution and team
+handoff. It changes no application code. Entries below retain implementation
+history; older weapon pools, HP and workload labels are superseded by current
+progress/README values.
+
 ## - 2026-10-05
 
 Initial publish of the starter code for COMP3421/COMP9415 26T3 Computer Graphics group assignment to the staff repos from individual assignment repo.

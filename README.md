@@ -14,7 +14,12 @@ Member A's M2 increment adds one enemy type, click-to-shoot projectiles, EXP
 attraction, random weapon offers, HP/countdown/outcomes and restart. Enemies,
 bullets and EXP use temporary coloured cube proxies; the gameplay panel is an
 integration UI for Member C to replace. B's current map remains the M1 layout;
-Day/Night switching is pending. See [Member A progress](docs/member-a-progress.md).
+Day/Night switching is pending. Member A has accepted the current gameplay after
+Windows/Visual Studio iteration. Final team integration and CSE validation remain
+outstanding. See [Member A progress](docs/member-a-progress.md) for the current
+scope, source attribution and B/C interfaces, and the
+[validation and replay guide](docs/member-a-validation.md) for recorded evidence,
+Windows steps and the manual gameplay checklist.
 
 Implement the required features described in the [assignment specification](https://gitlab.cse.unsw.edu.au/coursework/COMP3421/26T3/group-assignment-spec).
 
@@ -42,10 +47,10 @@ The arena, player, and renderer are starting implementations that can be extende
 assets/textures/    Textures you need to load and use for your assignment, you need to add your charactor skin texture to this folder. NameMC is a good website to find skins you like.
 assets/shaders/     Minimal GLSL shaders, plus the text and start screen shaders
 src/app/            ArenaScene, FollowCamera, PlayerController, AppUi, and benchmark timer
-src/core/           Asset lookup
+src/core/           Asset lookup and CPU-only gameplay/geometry/aim systems
 src/graphics/       ArenaRenderer, window, shader, texture, and text renderer
 src/world/          32 x 32 x 32 block grid and collision queries
-tests/              Optional Catch2 self-tests
+tests/              Optional Catch2/CTest suite (21 current cases)
 ```
 
 Implementation files under the existing source directories are automatically
@@ -62,19 +67,22 @@ Press **Enter** on the start screen, then use **WASD** to move. Movement follows
 - `graphics/ArenaRenderer` builds one mesh from exposed block faces and renders the player's six textured body parts. `assets/textures/player.png` uses the classic 64 × 64 skin UV layout. Call `ArenaScene::rebuildWorldGeometry()` after editing the grid.
 - `app/ArenaScene` joins the world, player, camera, and renderer. It exposes `world()`, `player()`, and `camera()` for enemy, pickup, HUD, and game-state integration.
 
-The current grid uses X/Z for the arena plane and Y for height. The floor is at Y=0, and the player's feet rest on top of it.
+The current grid uses X/Z for the arena plane and Y for height. Floor blocks
+occupy Y=0 through Y=1; actor feet rest on top. `ActorGeometry.h` shares the 70%
+scale, Y=1.32 actor centre and collision extents. Spawn consumers use B's metadata
+X/Z and ground the smaller actors at that shared height.
 
 ## Member B - Milestone 1 map foundation
 
 The default map is now defined by `world/ArenaLayout`, independently of OpenGL.
 It has four corner cover groups, four side barriers, a clear central spawn area,
 and connected routes between the centre and the perimeter. Cover and boundary
-walls remain two blocks tall to fit the existing camera.
+walls remain two blocks tall.
 
 - `makeMilestoneOneLayout()` supplies the current deterministic layout.
 - `ArenaWorld(layout)` builds the floor, boundary, and cover, and rejects invalid
   obstacle dimensions or blocked spawn positions.
-- `world.playerSpawn()` is the initial player centre used by `ArenaScene`.
+- `world.playerSpawn()` supplies the initial X/Z; `ArenaScene` grounds the smaller player through `PlayerController::setPosition`.
 - `world.enemySpawnCandidates()` supplies eight entry candidates for Member A.
   These are not an enemy spawner: A still checks enemy dimensions, current
   occupancy, and distance from the player before choosing a candidate.
@@ -92,17 +100,25 @@ and a GitLab-ready progress summary.
 
 After Enter, use WASD and click towards red enemy cubes to shoot. Holding the
 mouse button does not auto-fire. Kills drop green EXP cubes; approaching attracts
-and collects them. Player/enemy models and collision footprints use 70% of their original scale.
-The local camera shows the player's surroundings rather than fitting all 32×32 cells.
-Level-up pauses gameplay and opens a centred English selection dialog with two
-random weapon choices; click one to restore all 5 HP and resume. The weapon pool is Balance (two-hit standard bullets), Laser (four-hit piercing
-shots that reflect off one wall) and Bomb (one-hit full-damage area explosions).
-Enemies have 4 HP; weapon damage stays fixed across levels. Each level offers two
-distinct random weapons. Enemies move at 4.3 blocks/second versus the player's 5,
-with persistent waypoints and live actor occupancy for rerouting.
-Victory/defeat also opens a clear result dialog with a Play again button.
-The temporary gameplay panel shows HP, survival countdown, EXP and equipment.
-Restart current configuration resets gameplay; Level 1/2 requests await B's maps.
+and collects them. Player/enemy models and collision footprints use 70% of the
+original scale. The near-overhead local camera follows the player rather than
+fitting the entire map.
+
+Level-up pauses gameplay and opens a centred English dialog offering two random
+distinct weapons. Select one to restore all 5 HP and resume. Damage remains fixed
+across levels against 4-HP enemies:
+
+| Weapon | Damage | Shot interval | Speed | Behaviour |
+| --- | --- | --- | --- | --- |
+| Balance | 2 | 0.30 s | 24 blocks/s | Standard bullet; two-hit kill |
+| Laser | 1 | 0.12 s | 40 blocks/s | Piercing, one wall reflection; four-hit kill |
+| Bomb | 4 | 1.20 s | 8 blocks/s | Enemy/wall impact explosion, full damage within 3.5 blocks; one-hit kill |
+
+Enemies use persistent waypoints and live occupancy to reroute, moving at 4.3
+blocks/second versus the player's 5. HP reaching zero or surviving 180 simulation
+seconds opens a clear English DEFEAT/VICTORY dialog with Play again. The status
+panel shows HP, time, EXP, level and weapon. Restart resets player and gameplay
+on the current map; Day/Night selection awaits B's maps and level-loading work.
 
 `core/gameplay/Gameplay` is CPU-only. `ArenaScene::gameplay()` supplies read-only
 actor snapshots, stats and per-frame shot/hit events for C's HUD, animation and
@@ -123,8 +139,13 @@ ctest --test-dir build --output-on-failure  # Optional self-tests
 
 ## Run the application executable directly
 
-After a successful build, the executable is `build/Craft` on macOS/Linux and
-`build/Craft.exe` on Windows:
+After a successful single-configuration build, the executable is `build/Craft`
+on macOS/Linux. Windows Visual Studio builds typically place it under a
+configuration directory such as `build/Debug/Craft.exe`; Visual Studio-managed
+folder builds may use `out/build/...`. Select the Craft target in the IDE, or see
+the [Windows guide](docs/member-a-validation.md#build-and-run-on-the-existing-windows-checkout).
+
+On macOS/Linux:
 
 ```bash
 ./build/Craft
@@ -176,7 +197,7 @@ int main() {
       const bool benchmarkCompleted = benchmark.endSceneFrame();
       if (benchmarkCompleted) {
         printBenchmarkResult(benchmark.snapshot(), framebufferWidth,
-          framebufferHeight);
+          framebufferHeight, "your-matching-scene-workload");
         }
         // ... omitted for brevity
       }

@@ -2,6 +2,11 @@
 
 Updated: 2026-11-05 (Australia/Sydney).
 
+Status: current gameplay accepted by Member A in the development conversation.
+Code baseline: `91e0e6f`; this document consolidates the completed work through
+that commit. This is gameplay acceptance, not a claim that all team deliverables
+or final submission checks are complete.
+
 ## Scope and milestone boundary
 
 ProjectPlan.pdf assigns A gameplay, progression and game state. This M2 increment
@@ -14,8 +19,10 @@ B's current deterministic M1 map. It does not claim the team's whole M2 is done.
 | M2 / Week 8 | EXP attraction, level-up/weapon selection, gameplay state | Implemented with temporary English HUD and modal menus |
 | M3 / Week 9 | Weapon-hit particles, final integration and report evidence | Pending; shot/hit/blast interfaces supplied |
 
-B still owns Day/Night maps and lighting; C owns final models/animation, camera,
-HUD/menu presentation, instancing and comparative benchmark evidence. Coloured
+B still owns Day/Night maps and lighting; C owns final models/animation,
+HUD/menu presentation, instancing and comparative benchmark evidence. Camera and
+actor proportions were adjusted in this A integration at Member A's request;
+C retains the camera/presentation handoff for later integration. Coloured
 projectiles and the blast-radius ring are functional proxies, not M3 particles.
 
 ## Current gameplay
@@ -57,8 +64,8 @@ orange ring marking the full blast radius.
   spawning and timer and opens a centred, dimmed-background English modal.
   **Two distinct weapons are randomly offered** from Balance/Laser/Bomb.
   Selection equips one, consumes EXP, increments level, restores all 5 HP and
-  resumes (or offers
-  another level if enough EXP remains). Damage no longer grows with level, so
+  resumes (or offers another level if enough EXP remains). Damage no longer
+  grows with level, so
   the requested 2/4/1 hit counts remain valid at every level.
 - Player has 5 HP and one-second invulnerability after contact damage. Survive
   180 seconds to win; lose at zero HP. Loss wins a same-frame tie. Terminal
@@ -66,6 +73,34 @@ orange ring marking the full blast radius.
   kills, level, survival time and **Play again**. Restart resets player/gameplay
   together, preserving the current map. None of these menus depend on saved HUD
   sizes; choices cannot be dismissed into an unexplained paused state.
+
+## Local follow camera and smaller grounded actors
+
+The latest requested view shows the player's neighbourhood, with a fixed
+orthographic half-height of 8 blocks. Camera offset is 7 blocks horizontally and
+26 vertically (about 15 degrees from vertical). Player position is always the
+view target; zoom does not change near map edges or adapt to fit the arena.
+Distant scene areas fall outside the normal view clipping volume. No Day/Night
+lighting, fog or exploration system is implied by this camera change.
+
+Player and enemy models use 70% of the old world scale. Shared `ActorGeometry.h`
+provides the render scale, grounded actor-centre height (1.32), player extents
+(0.294, 0.308, 0.294), enemy extents (0.245, 0.308, 0.245), and separation values.
+Player feet and enemy base remain above the floor at Y=1. Actor/world collision,
+actor separation, contact reach, bullet hits and the aim plane use the new
+proportions. B's map/metadata is unchanged: player and enemy spawn consumers take
+its X/Z and ground the smaller body at the shared height. C should use these
+shared values when replacing models; do not hardcode the old 1.45 height.
+
+A valid upgrade selection fully heals to 5 HP, including successive level-ups;
+an invalid choice does not heal or resume. The English modal explains the heal.
+New tests cover wounded-player upgrade healing, actor scaling/grounding and
+camera follow/scale/clipping/aim across landscape, portrait and ultrawide aspects.
+All 21 tests passed; runtime screenshot confirms local cropped surroundings and
+near-overhead rendering. The 240-frame render smoke passed with the new camera
+workload label; timings cannot be compared directly with the older full-map view.
+Member A has accepted the current gameplay in conversation; broader device and
+resolution acceptance remains future integration work.
 
 ## Interfaces for teammates
 
@@ -124,7 +159,8 @@ xvfb-run -a -s '-screen 0 1280x720x24' \
 ```
 
 - Full application/test build passed; **21/21 CTest cases passed**. Coverage
-  includes B's map tests, movement/aim, spawning, crowd rerouting through cover,
+  comprises 16 A gameplay regression cases, four B world cases and the existing
+  starter math case. Coverage includes movement/aim, spawning, crowd rerouting,
   enemy speed, EXP/selection/reset, terminal states, weapon speeds/cooldowns,
   exact 2/4/1 hit counts after selection, laser penetration/one reflection and
   bomb impact/AOE with full damage and out-of-range survival.
@@ -143,8 +179,12 @@ then run `./build/Craft` (Windows executable path depends on the generator).
 On Windows, the earlier C++20 designated initializer in `SceneBenchmark` was
 replaced with C++17-compatible assignments; no standard upgrade is required.
 
-Manual Windows playtesting/balance, CSE/VLAB and final visual acceptance remain
-pending. Day/Night maps, final models/HUD, crosshair presentation and M3 particle,
+Member A ran the project on Windows/Visual Studio, reported the encountered
+issues during iteration, and subsequently accepted the current gameplay in chat.
+This user feedback is separate from the agent-run Linux checks above. A full
+Windows automated test log, CSE/VLAB validation and final team visual acceptance
+remain outstanding. Day/Night maps, final models/HUD, crosshair presentation and
+M3 particle,
 normal-mapping and BRDF challenges are not claimed here.
 
 ## Team handoff
@@ -154,33 +194,52 @@ normal-mapping and BRDF challenges are not claimed here.
 > navigation and Balance/Laser/Bomb behaviours. Level-up offers two random
 > distinct weapons. B's collision/spawn interfaces are preserved; C can consume
 > actor/shot/hit/blast snapshots for final presentation and instancing. Build,
-> 21 tests and UI/render checks passed; Windows balance and CSE acceptance remain
-> follow-up work. M3 particles are still deferred.
+> 21 tests and UI/render checks passed; Member A accepted the gameplay after
+> Windows iteration. Final team integration and CSE acceptance remain follow-up
+> work. M3 particles are still deferred.
 
+## Authorship and delivery record
 
-## Local follow camera and smaller grounded actors
+The starter already supplied the start screen, six-part textured player and limb
+swing, normalized WASD/block movement, camera scaffolding, ImGui lifecycle, mesh
+helpers and benchmark harness. B supplied the configurable map and spawn
+metadata. A reused these foundations; they are not claimed as entirely new A work.
+A added gameplay systems, tests and integration, fixed the reported UX/build/AI
+issues, and adjusted the camera/actor scale at the user's request.
 
-The latest requested view shows the player's neighbourhood, with a fixed
-orthographic half-height of 8 blocks. Camera offset is 7 blocks horizontally and
-26 vertically (about 15 degrees from vertical). Player position is always the
-view target; zoom does not change near map edges or adapt to fit the arena.
-Distant scene areas fall outside the normal view clipping volume. No Day/Night
-lighting, fog or exploration system is implied by this camera change.
+| Commit | A delivery |
+| --- | --- |
+| `5cb86d4` | M1 combat prerequisites and M2 EXP/selection/state integration, tests and handoff |
+| `fdd6266` | C++17-compatible benchmark snapshot initialization for the reported MSVC build failure |
+| `ce52a0b` | Reliable centred upgrade selection and initial weapon differentiation |
+| `aa53b10` | Balance/Laser/Bomb, live crowd routing, faster enemies, result/restart modals |
+| `91e0e6f` | Upgrade full healing, smaller grounded actors and local overhead follow view |
 
-Player and enemy models use 70% of the old world scale. Shared `ActorGeometry.h`
-provides the render scale, grounded actor-centre height (1.32), player extents
-(0.294, 0.308, 0.294), enemy extents (0.245, 0.308, 0.245), and separation values.
-Player feet and enemy base remain above the floor at Y=1. Actor/world collision,
-actor separation, contact reach, bullet hits and the aim plane use the new
-proportions. B's map/metadata is unchanged: player and enemy spawn consumers take
-its X/Z and ground the smaller body at the shared height. C should use these
-shared values when replacing models; do not hardcode the old 1.45 height.
+Older Heavy/Rapid and level-based damage entries in CHANGELOG are historical;
+the current pool/values are exclusively the Balance/Laser/Bomb table above.
 
-A valid upgrade selection fully heals to 5 HP, including successive level-ups;
-an invalid choice does not heal or resume. The English modal explains the heal.
-New tests cover wounded-player upgrade healing, actor scaling/grounding and
-camera follow/scale/clipping/aim across landscape, portrait and ultrawide aspects.
-All 21 tests passed; runtime screenshot confirms local cropped surroundings and
-near-overhead rendering. The 240-frame render smoke passed with the new camera
-workload label; timings cannot be compared directly with the older full-map view.
-Windows visual comfort/zoom acceptance remains local playtesting work.
+| Code area | Ownership/interface supplied by this A work |
+| --- | --- |
+| `src/core/gameplay/Gameplay.*` | CPU simulation, weapons, enemies, progression, phases and events |
+| `src/core/gameplay/ActorGeometry.h` | Shared render/collision/grounding proportions |
+| `src/core/gameplay/Aim.h` | Camera-to-world aim conversion |
+| `src/app/ArenaScene.*` | Player/world/simulation/render integration and complete restart |
+| `src/app/GameplayUi.*` | Temporary English status, selection and outcome presentation |
+| `src/app/FollowCamera.*` | Requested local near-overhead follow view |
+| `src/graphics/ArenaRenderer.*` | Scaled player and enemy/projectile/blast proxy rendering |
+| `tests/test_gameplay.cpp` | Gameplay, navigation, weapons, healing, geometry, movement and camera regression checks |
+
+## Next work and acceptance boundary
+
+| Owner | Remaining work |
+| --- | --- |
+| A / M3 | Weapon-hit particle bursts/styles using shot/hit/blast data; final integration and report evidence |
+| B | Day/Night map configurations, planned lighting/material work and normal mapping |
+| C | Final actor models/animations, polished HUD/menus and crosshair, instancing/BRDF and comparative performance evidence |
+| Team | Wire level switching, integrate presentation, validate CSE/VLAB and target platforms, complete report/video |
+
+Further weapon balance changes should preserve the currently agreed 2/4/1 hit
+counts unless the team explicitly changes the design. Keep simulation pause,
+heal-on-selection and full scene restart when replacing the temporary menus.
+See [validation and replay guide](member-a-validation.md) for evidence boundaries,
+Windows build instructions and the repeatable manual acceptance sequence.
