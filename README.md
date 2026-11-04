@@ -4,22 +4,11 @@
 
 The codebase is the starter code for the COMP3421/COMP9415 26T3 Computer Graphics group assignment. The project plan describes a 2.5D top-down survival arena shooter. You can find the assignment specification in [Group Assignment Specification repo](https://gitlab.cse.unsw.edu.au/coursework/COMP3421/26T3/group-assignment-spec).
 
-The current gameplay build opens an OpenGL 3.3 window, shows a start screen, and then renders a 32 × 32 × 32 block volume with a bounded arena floor, low perimeter walls, eight cover groups, a textured six-part player, and a near-overhead local follow camera. WASD movement is relative to the camera and stops at solid blocks; the player's arms and legs swing during movement. The project does **not** yet provide:
+The current Milestone 1 build opens an OpenGL 3.3 window, shows a start screen, and then renders a 32 × 32 × 32 block volume with a bounded arena floor, low perimeter walls, eight cover groups, a textured six-part player, and a fixed diagonal follow camera. WASD movement is relative to the camera and stops at solid blocks; the player's arms and legs swing during movement. The project does **not** yet provide:
 
-- M3 weapon-hit particle effects or final gameplay balance.
-- Final enemy models/animation, glowing EXP sphere visuals, layered player-skin overlays, or a full lighting model.
+- Enemies, shooting, projectiles, health, experience, weapons, or win/loss logic.
+- Enemy characters, enemy animation, layered player-skin overlays, or a full lighting model.
 - Chunk streaming, indexed meshing, or instanced rendering.
-
-Member A's M2 increment adds one enemy type, click-to-shoot projectiles, EXP
-attraction, random weapon offers, HP/countdown/outcomes and restart. Enemies,
-bullets and EXP use temporary coloured cube proxies; the gameplay panel is an
-integration UI for Member C to replace. B's current map remains the M1 layout;
-Day/Night switching is pending. Member A has accepted the current gameplay after
-Windows/Visual Studio iteration. Final team integration and CSE validation remain
-outstanding. See [Member A progress](docs/member-a-progress.md) for the current
-scope, source attribution and B/C interfaces, and the
-[validation and replay guide](docs/member-a-validation.md) for recorded evidence,
-Windows steps and the manual gameplay checklist.
 
 Implement the required features described in the [assignment specification](https://gitlab.cse.unsw.edu.au/coursework/COMP3421/26T3/group-assignment-spec).
 
@@ -30,7 +19,7 @@ Implement the required features described in the [assignment specification](http
 - A C++ CMake project using OpenGL 3.3 core, GLFW, GLAD 2 (on Windows/Linux) and GLM.
 - A 32 × 32 × 32 editable block grid with a combined exposed-face arena mesh.
 - A Minecraft-style player model with a textured head, torso, arms, and legs; the limbs swing during movement.
-- A near-overhead orthographic camera (about 15 degrees from vertical) that follows the player at fixed local zoom; distant areas are clipped off screen.
+- A fixed diagonal orthographic camera that follows the player and keeps the arena framed.
 - A start screen titled "Voxel Arena" with a pulsing "PRESS THE ENTER KEY" prompt (see [Start screen](#start-screen)).
 - Reusable 2D helpers: `Texture` (loads a PNG with stb_image into an OpenGL texture) and `TextRenderer` (draws bitmap-font text and solid rectangles in screen pixels using `assets/textures/font.png`). You can reuse them for your own HUD, such as a  hotbar.
 - One compact Dear ImGui window for arena controls and the course-provided 240-frame benchmark; extend CustomUi with gameplay-specific debug controls.
@@ -47,10 +36,10 @@ The arena, player, and renderer are starting implementations that can be extende
 assets/textures/    Textures you need to load and use for your assignment, you need to add your charactor skin texture to this folder. NameMC is a good website to find skins you like.
 assets/shaders/     Minimal GLSL shaders, plus the text and start screen shaders
 src/app/            ArenaScene, FollowCamera, PlayerController, AppUi, and benchmark timer
-src/core/           Asset lookup and CPU-only gameplay/geometry/aim systems
+src/core/           Asset lookup
 src/graphics/       ArenaRenderer, window, shader, texture, and text renderer
 src/world/          32 x 32 x 32 block grid and collision queries
-tests/              Optional Catch2/CTest suite (21 current cases)
+tests/              Optional Catch2 self-tests
 ```
 
 Implementation files under the existing source directories are automatically
@@ -59,30 +48,27 @@ collected by `src/CMakeLists.txt`. Use
 
 ## Arena starter and teammate interfaces
 
-Press **Enter** on the start screen, then use **WASD** to move. Movement follows the camera's screen directions, diagonal input is normalized, and the player slides along arena walls and obstacles.
+Press **Enter** on the start screen, then use **WASD** to move. Movement follows the diagonal camera's screen directions, diagonal input is normalized, and the player slides along arena walls and obstacles.
 
 - `world/ArenaWorld` owns the 32 × 32 × 32 block grid. `blockAt`, `isSolid`, `canOccupy`, and `setBlock` are the map and collision hooks for world generation and gameplay.
 - `app/PlayerController` owns the player's position, facing direction, move speed, and movement update. Its `MovementInput` can be filled by keyboard, replay, or AI code.
-- `app/FollowCamera` provides camera-relative forward/right vectors and the view-projection matrix. Its near-overhead angle and local zoom stay fixed while its target follows the player.
+- `app/FollowCamera` provides camera-relative forward/right vectors and the view-projection matrix. Its diagonal angle stays fixed while its target follows the player.
 - `graphics/ArenaRenderer` builds one mesh from exposed block faces and renders the player's six textured body parts. `assets/textures/player.png` uses the classic 64 × 64 skin UV layout. Call `ArenaScene::rebuildWorldGeometry()` after editing the grid.
 - `app/ArenaScene` joins the world, player, camera, and renderer. It exposes `world()`, `player()`, and `camera()` for enemy, pickup, HUD, and game-state integration.
 
-The current grid uses X/Z for the arena plane and Y for height. Floor blocks
-occupy Y=0 through Y=1; actor feet rest on top. `ActorGeometry.h` shares the 70%
-scale, Y=1.32 actor centre and collision extents. Spawn consumers use B's metadata
-X/Z and ground the smaller actors at that shared height.
+The current grid uses X/Z for the arena plane and Y for height. The floor is at Y=0, and the player's feet rest on top of it.
 
 ## Member B - Milestone 1 map foundation
 
 The default map is now defined by `world/ArenaLayout`, independently of OpenGL.
 It has four corner cover groups, four side barriers, a clear central spawn area,
 and connected routes between the centre and the perimeter. Cover and boundary
-walls remain two blocks tall.
+walls remain two blocks tall to fit the existing camera.
 
 - `makeMilestoneOneLayout()` supplies the current deterministic layout.
 - `ArenaWorld(layout)` builds the floor, boundary, and cover, and rejects invalid
   obstacle dimensions or blocked spawn positions.
-- `world.playerSpawn()` supplies the initial X/Z; `ArenaScene` grounds the smaller player through `PlayerController::setPosition`.
+- `world.playerSpawn()` is the initial player centre used by `ArenaScene`.
 - `world.enemySpawnCandidates()` supplies eight entry candidates for Member A.
   These are not an enemy spawner: A still checks enemy dimensions, current
   occupancy, and distance from the player before choosing a candidate.
@@ -92,39 +78,9 @@ walls remain two blocks tall.
 
 This completes only B's first map increment. Day/Night layouts, UVs, materials,
 and lighting belong to Milestone 2; normal mapping belongs to Milestone 3.
-A's subsequent M2 increment now supplies enemies and shooting on this map.
+The full Milestone 1 also needs A's enemies and shooting, which are not included.
 See [Member B progress and handoff](docs/member-b-progress.md) for verification
 and a GitLab-ready progress summary.
-
-## Member A - M2 gameplay and progression
-
-After Enter, use WASD and click towards red enemy cubes to shoot. Holding the
-mouse button does not auto-fire. Kills drop green EXP cubes; approaching attracts
-and collects them. Player/enemy models and collision footprints use 70% of the
-original scale. The near-overhead local camera follows the player rather than
-fitting the entire map.
-
-Level-up pauses gameplay and opens a centred English dialog offering two random
-distinct weapons. Select one to restore all 5 HP and resume. Damage remains fixed
-across levels against 4-HP enemies:
-
-| Weapon | Damage | Shot interval | Speed | Behaviour |
-| --- | --- | --- | --- | --- |
-| Balance | 2 | 0.30 s | 24 blocks/s | Standard bullet; two-hit kill |
-| Laser | 1 | 0.12 s | 40 blocks/s | Piercing, one wall reflection; four-hit kill |
-| Bomb | 4 | 1.20 s | 8 blocks/s | Enemy/wall impact explosion, full damage within 3.5 blocks; one-hit kill |
-
-Enemies use persistent waypoints and live occupancy to reroute, moving at 4.3
-blocks/second versus the player's 5. HP reaching zero or surviving 180 simulation
-seconds opens a clear English DEFEAT/VICTORY dialog with Play again. The status
-panel shows HP, time, EXP, level and weapon. Restart resets player and gameplay
-on the current map; Day/Night selection awaits B's maps and level-loading work.
-
-`core/gameplay/Gameplay` is CPU-only. `ArenaScene::gameplay()` supplies read-only
-actor snapshots, stats and per-frame shot/hit events for C's HUD, animation and
-instancing work. Interface comments and [A's handoff](docs/member-a-progress.md)
-describe coordinate conventions and integration boundaries. No M3 particles or
-separate weapon models are included.
 
 ## Build with CMake and test with CTest directly
 
@@ -139,13 +95,8 @@ ctest --test-dir build --output-on-failure  # Optional self-tests
 
 ## Run the application executable directly
 
-After a successful single-configuration build, the executable is `build/Craft`
-on macOS/Linux. Windows Visual Studio builds typically place it under a
-configuration directory such as `build/Debug/Craft.exe`; Visual Studio-managed
-folder builds may use `out/build/...`. Select the Craft target in the IDE, or see
-the [Windows guide](docs/member-a-validation.md#build-and-run-on-the-existing-windows-checkout).
-
-On macOS/Linux:
+After a successful build, the executable is `build/Craft` on macOS/Linux and
+`build/Craft.exe` on Windows:
 
 ```bash
 ./build/Craft
@@ -197,7 +148,7 @@ int main() {
       const bool benchmarkCompleted = benchmark.endSceneFrame();
       if (benchmarkCompleted) {
         printBenchmarkResult(benchmark.snapshot(), framebufferWidth,
-          framebufferHeight, "your-matching-scene-workload");
+          framebufferHeight);
         }
         // ... omitted for brevity
       }
@@ -220,9 +171,7 @@ The start screen is **skipped** for the environment-triggered run (`CRAFT_BENCHM
 The benchmark disables VSync, performs 60 warm-up frames, measures exactly 240 scene frames with GPU completion synchronisation, prints `average_ms`, then restores
 VSync, and excludes Dear ImGui and buffer swap. An environment-triggered run closes automatically after printing its result.
 
-Command-line benchmark results use `workload=milestone2-local-follow-arena` with
-simulation frozen before enemies spawn. In-game benchmarks freeze the current
-actor snapshot and use `workload=milestone2-local-follow-gameplay-frozen`. The camera and actor scale differ from earlier runs, so its timing must not be presented as an optimization comparison against the starter workload. It validates the benchmark harness and current scene, but is not final assignment performance evidence. Keep your scene rendering between the `beginSceneFrame` and `endSceneFrame` calls when extending the benchmark.
+The current result is labelled `workload=milestone1-voxel-arena`. The layout differs from the original starter, so its timing must not be presented as an optimization comparison against the starter workload. It validates the benchmark harness and current scene, but is not final assignment performance evidence. Keep your scene rendering between the `beginSceneFrame` and `endSceneFrame` calls when extending the benchmark.
 
 When improving performance, consider how mesh generation and draw-call count
 affect the result. Use the benchmark to compare approaches; no specific

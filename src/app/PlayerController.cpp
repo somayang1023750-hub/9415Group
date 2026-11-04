@@ -2,10 +2,10 @@
 
 #include <algorithm>
 #include <cmath>
-#include <glm/geometric.hpp>
 #include <stdexcept>
 
-#include "core/gameplay/ActorGeometry.h"
+#include <glm/geometric.hpp>
+
 #include "world/ArenaWorld.h"
 
 namespace craft::app {
@@ -16,7 +16,7 @@ constexpr float kMaximumFrameStep = 0.1F;
 constexpr float kDirectionEpsilon = 0.0001F;
 constexpr float kWalkCycleRadiansPerSecond = 10.0F;
 constexpr float kTwoPi = 6.28318530718F;
-const glm::vec3 kPlayerCollisionHalfExtents = gameplay::playerHalfExtents();
+const glm::vec3 kPlayerCollisionHalfExtents{0.42F, 0.44F, 0.42F};
 
 glm::vec3 horizontalUnit(const glm::vec3& vector) {
   const glm::vec3 horizontal{vector.x, 0.0F, vector.z};
@@ -99,20 +99,24 @@ const glm::vec3& PlayerController::facingDirection() const noexcept {
   return facingDirection_;
 }
 
-float PlayerController::yawRadians() const noexcept { return yawRadians_; }
+float PlayerController::yawRadians() const noexcept {
+  return yawRadians_;
+}
 
-bool PlayerController::isMoving() const noexcept { return moving_; }
+bool PlayerController::isMoving() const noexcept {
+  return moving_;
+}
 
 float PlayerController::walkCyclePhase() const noexcept {
   return walkCyclePhase_;
 }
 
-float PlayerController::moveSpeed() const noexcept { return moveSpeed_; }
+float PlayerController::moveSpeed() const noexcept {
+  return moveSpeed_;
+}
 
-bool PlayerController::setPosition(const glm::vec3& metadata,
+bool PlayerController::setPosition(const glm::vec3& position,
                                    const world::ArenaWorld& world) {
-  if (!std::isfinite(metadata.y)) return false;
-  const glm::vec3 position(metadata.x, gameplay::kActorCentreY, metadata.z);
   if (!world.canOccupy(position, collisionHalfExtents())) {
     return false;
   }

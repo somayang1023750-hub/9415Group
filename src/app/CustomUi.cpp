@@ -6,7 +6,8 @@
 
 namespace craft::app {
 
-std::optional<GameUiAction> CustomUi::drawContents(bool interactionDisabled) {
+std::optional<GameUiAction> CustomUi::drawContents(
+    bool interactionDisabled) {
   std::optional<GameUiAction> action;
 
   ImGui::SeparatorText("How to play");
@@ -24,9 +25,7 @@ std::optional<GameUiAction> CustomUi::drawContents(bool interactionDisabled) {
     action = GameUiAction::RestartCurrentConfiguration;
   }
 
-  ImGui::TextUnformatted("Switch configuration (Day/Night maps pending):");
-  // B/C: enable once distinct layouts are supplied and loading is connected.
-  ImGui::BeginDisabled(true);
+  ImGui::TextUnformatted("Switch configuration:");
   if (ImGui::Button("Level 1")) {
     action = GameUiAction::SelectLevel1;
   }
@@ -35,12 +34,11 @@ std::optional<GameUiAction> CustomUi::drawContents(bool interactionDisabled) {
     action = GameUiAction::SelectLevel2;
   }
   ImGui::EndDisabled();
-  ImGui::EndDisabled();
 
   if (action.has_value()) {
     ImGui::TextWrapped(
-        "Restart resets gameplay. Level switching awaits Member B Day/Night "
-        "layouts.");
+        "UI request emitted. Restart and level loading are not connected to "
+        "gameplay yet.");
   }
 
   return action;

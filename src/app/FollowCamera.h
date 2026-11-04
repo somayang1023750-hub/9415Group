@@ -5,8 +5,8 @@
 
 namespace craft::app {
 
-// Near-overhead orthographic camera, about 15 degrees from vertical.
-// Fixed local zoom follows the player and clips the distant arena.
+// Fixed diagonal orthographic camera. Its position tracks the player while
+// its projection keeps a stable scale as the player moves.
 class FollowCamera {
  public:
   [[nodiscard]] glm::vec3 worldPosition(const glm::vec3& target) const noexcept;

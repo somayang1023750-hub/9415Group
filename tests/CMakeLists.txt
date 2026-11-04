@@ -17,8 +17,6 @@ file(GLOB CRAFT_TEST_SOURCES CONFIGURE_DEPENDS
 
 add_executable(craft_tests
     ${CRAFT_TEST_SOURCES}
-    ${PROJECT_SOURCE_DIR}/src/app/PlayerController.cpp
-    ${PROJECT_SOURCE_DIR}/src/app/FollowCamera.cpp
 )
 
 target_link_libraries(craft_tests PRIVATE

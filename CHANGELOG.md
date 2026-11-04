@@ -4,22 +4,6 @@ This file records the changes made to the starter code and explain why the issue
 
 
 
-## Current Member A status — 2026-11-05
-
-Member A accepted the current gameplay after Windows/Visual Studio iteration.
-Current code baseline is `91e0e6f`: Balance/Laser/Bomb, random two-choice level-up
-with full healing, explicit result/restart menus, crowd rerouting, smaller
-actors and local overhead following are documented in
-[Member A progress](docs/member-a-progress.md). The current automated suite has
-21 passing cases on Linux; CSE and full platform acceptance remain outstanding.
-
-This documentation consolidation adds the
-[validation and replay guide](docs/member-a-validation.md), aligns README with
-current controls/values/Windows output paths, and records attribution and team
-handoff. It changes no application code. Entries below retain implementation
-history; older weapon pools, HP and workload labels are superseded by current
-progress/README values.
-
 ## - 2026-10-05
 
 Initial publish of the starter code for COMP3421/COMP9415 26T3 Computer Graphics group assignment to the staff repos from individual assignment repo.
@@ -48,59 +32,3 @@ and CSE/VLAB verification remain pending.
 
 Scope: this increment covers B's M1 map foundation only. Day/Night layouts,
 UVs, materials, and lighting remain M2 work; normal mapping remains M3 work.
-
-## - 2026-11-05 — Member A: Milestone 2 gameplay increment
-
-- Reused existing eight-direction movement; added enemy spawning/chasing and
-  swept click-to-shoot bullet collision on B's live arena map.
-- Added EXP drops/magnetic collection, paused level-up with randomized weapon
-  offers, equipment progression, HP/contact damage, survival outcomes and restart.
-- Added CPU-only gameplay snapshots and shot/hit events for B/C integration;
-  temporary cube actors and a functional panel leave final visuals/HUD to C.
-- Preserved the static command-line benchmark; in-game frozen gameplay uses a
-  separate workload label. Timing boundaries remain unchanged.
-- Added seven gameplay/movement/aim test cases; all 12 CTest cases passed.
-  Linux build, 240-frame OpenGL smoke and automated input/render smoke passed.
-- Added [Member A progress and handoff](docs/member-a-progress.md). Day/Night map
-  integration, final models/UI, CSE validation and M3 particles remain pending.
-
-
-## - 2026-11-05 — Upgrade selection usability and weapon tuning
-
-- Moved upgrade choices into a centred English modal with an explicit paused
-  message, full-width buttons and post-upgrade weapon stats. Selection resumes
-  gameplay; old/collapsed HUD sizes cannot hide the choices.
-- Centralized weapon profiles: Heavy has slower shots/projectiles and higher
-  damage; Rapid has faster shots/projectiles and lower damage; Balanced sits
-  between them. Set enemy HP to 3 to distinguish required hits.
-- Build and all 13 CTest cases passed; separate ImGui interaction checks verified
-  the modal and resume flow at 640x480, 1280x720 and 1920x1080.
-
-
-## - 2026-11-05 — Outcome menus, navigation and Balance/Laser/Bomb
-
-- Added centred English victory/defeat modals with run statistics and a Play
-  again request, routed through ArenaScene for full player/gameplay reset.
-- Replaced turn-centre oscillation with persistent waypoints and live-occupancy
-  rerouting. Enemy speed is now 4.3 blocks/s, just below the player's default 5.
-- Replaced the old weapon pool with Balance/Laser/Bomb. Laser pierces enemies
-  and reflects once; Bomb detonates on enemies/cover with full 3.5-block radial
-  damage. Added distinct projectile proxies and a short-lived blast-radius ring.
-- Enemy HP is 4 and damage is fixed at 2/1/4, preserving two/four/one hit kills
-  after leveling. Every selection page offers two random distinct weapons.
-- Build and 18 CTest cases passed, including navigation, exact hit counts,
-  penetration, reflection, impact explosions and radial damage. UI checks cover
-  upgrade/results and restart at three window sizes. Updated A's handoff.
-
-
-## - 2026-11-05 — Level-up healing and local overhead follow view
-
-- Accepted upgrade choices now restore all 5 HP; the English modal explains it.
-- Replaced whole-map fitting with a fixed local orthographic view following the
-  player, tilted approximately 15 degrees from vertical.
-- Scaled player/enemy models and collision footprints to 70%, shared geometry
-  values across rendering/simulation/aim, and grounded smaller bodies at Y=1.32.
-  B's map and spawn metadata remain unchanged.
-- Renamed benchmark workloads for the new camera so old full-map timings are
-  not confused with current rendering. Build, 21 tests and render/input smoke
-  passed; Windows view/comfort acceptance remains local follow-up work.

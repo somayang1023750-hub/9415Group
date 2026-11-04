@@ -1,21 +1,28 @@
 #include "app/FollowCamera.h"
 
 #include <algorithm>
+#include <array>
+#include <cmath>
+#include <stdexcept>
+
 #include <glm/ext/matrix_clip_space.hpp>
 #include <glm/ext/matrix_transform.hpp>
 #include <glm/geometric.hpp>
-#include <stdexcept>
+#include <glm/vec4.hpp>
 
 namespace craft::app {
 
 namespace {
 
 const glm::vec3 kWorldUp{0.0F, 1.0F, 0.0F};
-constexpr float kHorizontalCameraDistance = 7.0F;
-constexpr float kVerticalCameraDistance = 26.0F;
-constexpr float kHalfHeight = 8.0F;
+constexpr float kHorizontalCameraDistance = 24.0F;
+constexpr float kVerticalCameraDistance = 28.0F;
+constexpr float kArenaCenter = 16.0F;
+constexpr float kPlayerEyeHeight = 1.45F;
+constexpr float kMinimumHalfHeight = 18.0F;
+constexpr float kFrameMargin = 2.0F;
 constexpr float kNearPlane = 0.1F;
-constexpr float kFarPlane = 80.0F;
+constexpr float kFarPlane = 160.0F;
 
 }  // namespace
 
@@ -45,14 +52,47 @@ glm::mat4 FollowCamera::viewProjection(const glm::vec3& target,
   const glm::vec3 cameraPosition = worldPosition(target);
   const glm::mat4 view = glm::lookAt(cameraPosition, target, kWorldUp);
 
-  // Local player-centred view, about 15 degrees from vertical. Never fit the
-  // whole arena: fixed zoom and normal clipping keep distant areas off screen.
-  // C: tune kHalfHeight/offsets together; aiming uses this exact same matrix.
+  // Keep the camera's scale fixed as it follows the player. Derive the
+  // projection from a stable view at the arena's starting focus; measuring
+  // bounds against the moving view makes the orthographic volume grow near
+  // the arena edges and looks like the camera is zooming out.
+  const glm::vec3 framingTarget{kArenaCenter, kPlayerEyeHeight, kArenaCenter};
+  const glm::vec3 framingCameraPosition = worldPosition(framingTarget);
+  const glm::mat4 framingView =
+      glm::lookAt(framingCameraPosition, framingTarget, kWorldUp);
+
   const float aspect = static_cast<float>(framebufferWidth) /
                        static_cast<float>(framebufferHeight);
-  const float halfWidth = kHalfHeight * aspect;
-  const glm::mat4 projection = glm::ortho(-halfWidth, halfWidth, -kHalfHeight,
-                                          kHalfHeight, kNearPlane, kFarPlane);
+  float halfHeight = kMinimumHalfHeight;
+  float halfWidth = kMinimumHalfHeight * aspect;
+
+  // Frame the playable arena footprint, including its low perimeter walls.
+  constexpr float kArenaTop = 3.0F;
+  const std::array<glm::vec3, 8> arenaCorners{{
+      {0.0F, 0.0F, 0.0F},
+      {32.0F, 0.0F, 0.0F},
+      {0.0F, 0.0F, 32.0F},
+      {32.0F, 0.0F, 32.0F},
+      {0.0F, kArenaTop, 0.0F},
+      {32.0F, kArenaTop, 0.0F},
+      {0.0F, kArenaTop, 32.0F},
+      {32.0F, kArenaTop, 32.0F},
+  }};
+
+  for (const glm::vec3& corner : arenaCorners) {
+    const glm::vec4 viewCorner = framingView * glm::vec4{corner, 1.0F};
+    halfWidth = std::max(halfWidth, std::abs(viewCorner.x) + kFrameMargin);
+    halfHeight =
+        std::max(halfHeight, std::abs(viewCorner.y) + kFrameMargin);
+  }
+
+  // Keep a consistent aspect ratio while satisfying both projected bounds.
+  halfHeight = std::max(halfHeight, halfWidth / aspect);
+  halfWidth = halfHeight * aspect;
+
+  const glm::mat4 projection =
+      glm::ortho(-halfWidth, halfWidth, -halfHeight, halfHeight, kNearPlane,
+                 kFarPlane);
   return projection * view;
 }
 
