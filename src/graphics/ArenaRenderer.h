@@ -38,6 +38,12 @@ class ArenaRenderer {
                   const glm::vec3& position, float yawRadians,
                   float walkCyclePhase, bool moving) const;
 
+  // C: temporary untextured cube proxies; replace with your actor/instanced
+  // renderer using Gameplay snapshots without changing simulation ownership.
+  void drawProxy(const Shader& shader, const glm::mat4& viewProjection,
+                 const glm::vec3& position, const glm::vec3& halfExtents,
+                 const glm::vec3& color) const;
+
   [[nodiscard]] int worldVertexCount() const noexcept;
 
  private:

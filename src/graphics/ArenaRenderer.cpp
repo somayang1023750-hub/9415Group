@@ -390,6 +390,20 @@ void ArenaRenderer::drawPlayer(const Shader& shader,
   glBindVertexArray(0);
 }
 
+void ArenaRenderer::drawProxy(const Shader& shader, const glm::mat4& vp,
+                               const glm::vec3& position,
+                               const glm::vec3& halfExtents,
+                               const glm::vec3& color) const {
+  shader.use();
+  shader.setInt("uUseTexture", 0);
+  shader.setVec3("uTint", color);
+  shader.setMat4("uMvp", vp * glm::scale(glm::translate(glm::mat4(1), position),
+                                       halfExtents * 2.0F));
+  glBindVertexArray(playerVertexArray_);
+  glDrawArrays(GL_TRIANGLES, playerPartRanges_[0].firstVertex, 36);
+  glBindVertexArray(0);
+}
+
 int ArenaRenderer::worldVertexCount() const noexcept {
   return worldVertexCount_;
 }

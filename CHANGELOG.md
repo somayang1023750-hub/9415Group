@@ -32,3 +32,18 @@ and CSE/VLAB verification remain pending.
 
 Scope: this increment covers B's M1 map foundation only. Day/Night layouts,
 UVs, materials, and lighting remain M2 work; normal mapping remains M3 work.
+
+## - 2026-11-05 — Member A: Milestone 2 gameplay increment
+
+- Reused existing eight-direction movement; added enemy spawning/chasing and
+  swept click-to-shoot bullet collision on B's live arena map.
+- Added EXP drops/magnetic collection, paused level-up with randomized weapon
+  offers, equipment progression, HP/contact damage, survival outcomes and restart.
+- Added CPU-only gameplay snapshots and shot/hit events for B/C integration;
+  temporary cube actors and a functional panel leave final visuals/HUD to C.
+- Preserved the static command-line benchmark; in-game frozen gameplay uses a
+  separate workload label. Timing boundaries remain unchanged.
+- Added seven gameplay/movement/aim test cases; all 12 CTest cases passed.
+  Linux build, 240-frame OpenGL smoke and automated input/render smoke passed.
+- Added [Member A progress and handoff](docs/member-a-progress.md). Day/Night map
+  integration, final models/UI, CSE validation and M3 particles remain pending.

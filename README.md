@@ -4,11 +4,17 @@
 
 The codebase is the starter code for the COMP3421/COMP9415 26T3 Computer Graphics group assignment. The project plan describes a 2.5D top-down survival arena shooter. You can find the assignment specification in [Group Assignment Specification repo](https://gitlab.cse.unsw.edu.au/coursework/COMP3421/26T3/group-assignment-spec).
 
-The current Milestone 1 build opens an OpenGL 3.3 window, shows a start screen, and then renders a 32 × 32 × 32 block volume with a bounded arena floor, low perimeter walls, eight cover groups, a textured six-part player, and a fixed diagonal follow camera. WASD movement is relative to the camera and stops at solid blocks; the player's arms and legs swing during movement. The project does **not** yet provide:
+The current gameplay build opens an OpenGL 3.3 window, shows a start screen, and then renders a 32 × 32 × 32 block volume with a bounded arena floor, low perimeter walls, eight cover groups, a textured six-part player, and a fixed diagonal follow camera. WASD movement is relative to the camera and stops at solid blocks; the player's arms and legs swing during movement. The project does **not** yet provide:
 
-- Enemies, shooting, projectiles, health, experience, weapons, or win/loss logic.
-- Enemy characters, enemy animation, layered player-skin overlays, or a full lighting model.
+- M3 weapon-hit particle effects or final gameplay balance.
+- Final enemy models/animation, glowing EXP sphere visuals, layered player-skin overlays, or a full lighting model.
 - Chunk streaming, indexed meshing, or instanced rendering.
+
+Member A's M2 increment adds one enemy type, click-to-shoot projectiles, EXP
+attraction, random weapon offers, HP/countdown/outcomes and restart. Enemies,
+bullets and EXP use temporary coloured cube proxies; the gameplay panel is an
+integration UI for Member C to replace. B's current map remains the M1 layout;
+Day/Night switching is pending. See [Member A progress](docs/member-a-progress.md).
 
 Implement the required features described in the [assignment specification](https://gitlab.cse.unsw.edu.au/coursework/COMP3421/26T3/group-assignment-spec).
 
@@ -78,9 +84,23 @@ walls remain two blocks tall to fit the existing camera.
 
 This completes only B's first map increment. Day/Night layouts, UVs, materials,
 and lighting belong to Milestone 2; normal mapping belongs to Milestone 3.
-The full Milestone 1 also needs A's enemies and shooting, which are not included.
+A's subsequent M2 increment now supplies enemies and shooting on this map.
 See [Member B progress and handoff](docs/member-b-progress.md) for verification
 and a GitLab-ready progress summary.
+
+## Member A - M2 gameplay and progression
+
+After Enter, use WASD and click towards red enemy cubes to shoot. Holding the
+mouse button does not auto-fire. Kills drop green EXP cubes; approaching attracts
+and collects them. Level-up pauses gameplay and offers two random weapon choices.
+The temporary gameplay panel shows HP, survival countdown, EXP and equipment.
+Restart current configuration resets gameplay; Level 1/2 requests await B's maps.
+
+`core/gameplay/Gameplay` is CPU-only. `ArenaScene::gameplay()` supplies read-only
+actor snapshots, stats and per-frame shot/hit events for C's HUD, animation and
+instancing work. Interface comments and [A's handoff](docs/member-a-progress.md)
+describe coordinate conventions and integration boundaries. No M3 particles or
+separate weapon models are included.
 
 ## Build with CMake and test with CTest directly
 
@@ -171,7 +191,9 @@ The start screen is **skipped** for the environment-triggered run (`CRAFT_BENCHM
 The benchmark disables VSync, performs 60 warm-up frames, measures exactly 240 scene frames with GPU completion synchronisation, prints `average_ms`, then restores
 VSync, and excludes Dear ImGui and buffer swap. An environment-triggered run closes automatically after printing its result.
 
-The current result is labelled `workload=milestone1-voxel-arena`. The layout differs from the original starter, so its timing must not be presented as an optimization comparison against the starter workload. It validates the benchmark harness and current scene, but is not final assignment performance evidence. Keep your scene rendering between the `beginSceneFrame` and `endSceneFrame` calls when extending the benchmark.
+Command-line benchmark results retain `workload=milestone1-voxel-arena` with
+simulation frozen before enemies spawn. In-game benchmarks freeze the current
+actor snapshot and use `workload=milestone2-gameplay-frozen`. The layout differs from the original starter, so its timing must not be presented as an optimization comparison against the starter workload. It validates the benchmark harness and current scene, but is not final assignment performance evidence. Keep your scene rendering between the `beginSceneFrame` and `endSceneFrame` calls when extending the benchmark.
 
 When improving performance, consider how mesh generation and draw-call count
 affect the result. Use the benchmark to compare approaches; no specific
