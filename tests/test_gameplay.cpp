@@ -191,3 +191,54 @@ TEST_CASE("Camera aiming maps logical window pixels onto the actor plane",
   REQUIRE(glm::length(*aim - target) < 0.001F);
   REQUIRE_FALSE(craft::gameplay::aimOnPlane(vp, 0, 0, 0, 0));
 }
+
+TEST_CASE("Weapon profiles have distinct cadence, projectile speed and damage",
+          "[weapons]") {
+  using craft::gameplay::Weapon;
+  using craft::gameplay::weaponProfile;
+  const auto heavy = weaponProfile(Weapon::Heavy);
+  const auto balanced = weaponProfile(Weapon::Balanced);
+  const auto rapid = weaponProfile(Weapon::Rapid);
+  REQUIRE(heavy.shotCooldown > balanced.shotCooldown * 2);
+  REQUIRE(balanced.shotCooldown > rapid.shotCooldown * 2);
+  REQUIRE(rapid.bulletSpeed > balanced.bulletSpeed);
+  REQUIRE(balanced.bulletSpeed == heavy.bulletSpeed * 2);
+  REQUIRE(heavy.baseDamage > balanced.baseDamage);
+  REQUIRE(balanced.baseDamage > rapid.baseDamage);
+  auto world = emptyWorld();
+  // Exercise every profile through the actual upgrade and firing boundary.
+  for (auto desired : {Weapon::Balanced, Weapon::Rapid, Weapon::Heavy}) {
+    bool verified = false;
+    for (unsigned seed = 0; seed < 20 && !verified; ++seed) {
+      Gameplay game(seed);
+      for (int kill = 0; kill < 3; ++kill) {
+        const int before = game.stats().kills;
+        REQUIRE(game.spawnEnemy({16, 1.45F, 22}, player, world));
+        for (int i = 0; i < 40 && game.stats().kills == before; ++i)
+          game.update(.1F, player, world, game.enemies().front().position);
+        REQUIRE(game.orbs().size() == 1);
+        game.update(.1F, game.orbs().front().position, world);
+      }
+      const auto choices = game.upgradeChoices();
+      for (std::size_t i = 0; i < choices.size(); ++i) {
+        if (choices[i] != desired) continue;
+        REQUIRE(game.chooseUpgrade(i));
+        for (int frame = 0; frame < 25; ++frame)
+          game.update(.1F, player, world);
+        game.update(.01F, player, world, glm::vec3(20, 1.45F, 16));
+        REQUIRE(game.shots().size() == 1);
+        REQUIRE(game.bullets().size() == 1);
+        const auto profile = weaponProfile(desired);
+        REQUIRE(glm::length(game.bullets()[0].velocity) ==
+                Catch::Approx(profile.bulletSpeed));
+        REQUIRE(game.bullets()[0].damage == profile.baseDamage + 1);
+        REQUIRE(game.bullets()[0].weapon == desired);
+        game.update(.01F, player, world, glm::vec3(20, 1.45F, 16));
+        REQUIRE(game.shots().empty());
+        verified = true;
+        break;
+      }
+    }
+    REQUIRE(verified);
+  }
+}

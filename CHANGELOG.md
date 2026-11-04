@@ -47,3 +47,15 @@ UVs, materials, and lighting remain M2 work; normal mapping remains M3 work.
   Linux build, 240-frame OpenGL smoke and automated input/render smoke passed.
 - Added [Member A progress and handoff](docs/member-a-progress.md). Day/Night map
   integration, final models/UI, CSE validation and M3 particles remain pending.
+
+
+## - 2026-11-05 — Upgrade selection usability and weapon tuning
+
+- Moved upgrade choices into a centred English modal with an explicit paused
+  message, full-width buttons and post-upgrade weapon stats. Selection resumes
+  gameplay; old/collapsed HUD sizes cannot hide the choices.
+- Centralized weapon profiles: Heavy has slower shots/projectiles and higher
+  damage; Rapid has faster shots/projectiles and lower damage; Balanced sits
+  between them. Set enemy HP to 3 to distinguish required hits.
+- Build and all 13 CTest cases passed; separate ImGui interaction checks verified
+  the modal and resume flow at 640x480, 1280x720 and 1920x1080.

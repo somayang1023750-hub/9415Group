@@ -104,14 +104,12 @@ void Gameplay::update(float dt, const glm::vec3& player,
       std::isfinite(target->z)) {
     glm::vec3 direction{target->x - player.x, 0, target->z - player.z};
     if (glm::length(direction) > 0.001F) {
+      const auto profile = weaponProfile(stats_.weapon);
       bullets_.push_back(
-          {player, glm::normalize(direction) * 24.F, 2.F,
-           (stats_.weapon == Weapon::Heavy ? 2 : 1) + stats_.level - 1,
-           stats_.weapon});
+          {player, glm::normalize(direction) * profile.bulletSpeed, 2.F,
+           profile.baseDamage + stats_.level - 1, stats_.weapon});
       shots_.push_back({player, glm::normalize(direction), stats_.weapon});
-      shotClock_ = stats_.weapon == Weapon::Rapid   ? 0.12F
-                   : stats_.weapon == Weapon::Heavy ? 0.5F
-                                                    : 0.25F;
+      shotClock_ = profile.shotCooldown;
     }
   }
   // B: rebuild the flow field from live blocks so setBlock/layout edits are
@@ -253,12 +251,22 @@ void Gameplay::update(float dt, const glm::vec3& player,
   else
     offerUpgrade();
 }
+WeaponProfile weaponProfile(Weapon weapon) {
+  switch (weapon) {
+    case Weapon::Rapid:
+      return {1, 0.10F, 40.0F};
+    case Weapon::Heavy:
+      return {4, 0.85F, 12.0F};
+    default:
+      return {2, 0.30F, 24.0F};
+  }
+}
 const char* weaponName(Weapon weapon) {
   switch (weapon) {
     case Weapon::Rapid:
-      return "Rapid (short cooldown)";
+      return "Rapid";
     case Weapon::Heavy:
-      return "Heavy (slow, high damage)";
+      return "Heavy";
     default:
       return "Balanced";
   }

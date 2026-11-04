@@ -92,7 +92,10 @@ and a GitLab-ready progress summary.
 
 After Enter, use WASD and click towards red enemy cubes to shoot. Holding the
 mouse button does not auto-fire. Kills drop green EXP cubes; approaching attracts
-and collects them. Level-up pauses gameplay and offers two random weapon choices.
+and collects them. Level-up pauses gameplay and opens a centred English selection dialog with two
+random weapon choices; click one to resume. Heavy fires slower projectiles with
+a longer shot interval and higher damage; Rapid has faster projectiles and a
+shorter interval with lower damage; Balanced sits between them.
 The temporary gameplay panel shows HP, survival countdown, EXP and equipment.
 Restart current configuration resets gameplay; Level 1/2 requests await B's maps.
 

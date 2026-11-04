@@ -26,7 +26,7 @@ instancing and report benchmark evidence remain their own integration work.
   two simulation seconds, cap at 24, require four blocks of player distance and
   reject solid blocks or overlapping enemies. Invalid/occupied candidates are
   skipped. Enemy centres and half-extents match the temporary render proxies.
-- One enemy type has 2 HP and chases at 1.8 blocks/second. A four-neighbour BFS
+- One enemy type has 3 HP and chases at 1.8 blocks/second. A four-neighbour BFS
   flow field navigates around cover and is rebuilt from live blocks; enemies
   cannot cut diagonal corners, enter solid blocks, or overlap live actors.
 - Retain the supplied normalized eight-direction player movement and camera.
@@ -46,7 +46,8 @@ instancing and report benchmark evidence remain their own integration work.
   movement, spawning and countdown and offers two distinct shuffled choices from
   Balanced, Rapid and Heavy. Choosing equips a weapon, consumes the threshold,
   increments level, and handles any remaining EXP. Each level adds one damage.
-  Base damage/cooldown: Balanced 1/0.25s, Rapid 1/0.12s, Heavy 2/0.5s. These are
+  Base damage/cooldown/bullet speed: Balanced 2/0.30s/24, Rapid 1/0.10s/40,
+  Heavy 4/0.85s/12 (speed in blocks/second). These are
   initial tuning values. No separate weapon models or M3 particle styles added.
 - Added 5 player HP, one-second contact-damage invulnerability, a 180-second
   survival countdown, Won/Lost states, and restart of the current configuration.
@@ -109,7 +110,7 @@ xvfb-run -a -s '-screen 0 1280x720x24' \
 ```
 
 - Full application/test build passed.
-- CTest: 12/12 cases passed, including B's original world tests. New coverage:
+- CTest: 13/13 cases passed, including B's original world tests. New coverage:
   live spawn clearance/distance/occupancy/cap; chase around cover; swept bullet
   hits and cover blocking; fire cooldown/invalid aim; EXP attraction/collection;
   randomized distinct offers; pause/selection/reset; contact damage and win/loss;
@@ -139,5 +140,35 @@ Suggested update:
 > selection. Added HP, survival outcome and restart, with temporary render/UI
 > proxies. B's collision/spawn contracts are reused; C can consume snapshots and
 > shot/hit events for models, HUD, animation and instancing. Particle effects are
-> deferred to M3. Linux build, 12 CTest cases and OpenGL/input smoke checks passed;
+> deferred to M3. Linux build, 13 CTest cases and OpenGL/input smoke checks passed;
 > final visual acceptance and CSE verification remain pending.
+
+
+## Follow-up: visible upgrade selection and distinct weapons
+
+Replaced the HUD-embedded upgrade buttons with a centred, dimmed-background,
+English-only modal. It explicitly says `GAME PAUSED` and asks the player to choose
+a weapon to resume. Both full-width choices show post-upgrade damage, shot
+interval and projectile speed. The modal does not use saved HUD sizes or expose
+a close button that could leave gameplay paused without a selection. Arena status
+also auto-sizes; C can replace the presentation while retaining `chooseUpgrade`.
+
+`weaponProfile(Weapon)` is now the shared source for simulation and UI:
+
+| Weapon | Base damage | Minimum shot interval | Bullet speed |
+| --- | --- | --- | --- |
+| Balanced | 2 | 0.30 seconds | 24 blocks/second |
+| Rapid | 1 | 0.10 seconds | 40 blocks/second |
+| Heavy | 4 | 0.85 seconds | 12 blocks/second |
+
+Enemies now have 3 HP, so at level 1 the base profiles would require 2 Balanced,
+3 Rapid or 1 Heavy hit. Each earned upgrade still adds one damage. Shooting
+remains click-to-shoot, with these intervals limiting accepted clicks; holding
+is not automatic fire. Projectiles retain their launch-time speed and damage.
+
+Validation: build and 13 CTest cases passed, including firing every weapon via
+the real upgrade boundary and checking projectile speed/damage/cooldown. A
+separate ImGui interaction harness exercised the actual modal: complete offers
+visible without scrolling, outside clicks do not dismiss, selecting advances
+level and resumes the countdown. Tested with Arena status collapsed at 640x480,
+1280x720 and 1920x1080. Windows visual confirmation remains a local follow-up.

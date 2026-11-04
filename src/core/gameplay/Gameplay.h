@@ -12,10 +12,17 @@ class ArenaWorld;
 namespace craft::gameplay {
 
 enum class Weapon { Balanced, Rapid, Heavy };
+struct WeaponProfile {
+  int baseDamage;
+  float shotCooldown;
+  float bulletSpeed;
+};
+// One source for simulation and C's weapon/upgrade UI. Speeds are blocks/sec.
+[[nodiscard]] WeaponProfile weaponProfile(Weapon weapon);
 struct Enemy {
   std::uint32_t id;
   glm::vec3 position;
-  int health = 2;
+  int health = 3;
 };
 struct Bullet {
   glm::vec3 position;
