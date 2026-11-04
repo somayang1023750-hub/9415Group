@@ -57,13 +57,15 @@ void Gameplay::reset() {
   random_.seed(seed_);
   spawnClock_ = shotClock_ = hurtClock_ = 0;
 }
-bool Gameplay::spawnEnemy(const glm::vec3& p, const glm::vec3& player,
+bool Gameplay::spawnEnemy(const glm::vec3& metadata, const glm::vec3& player,
                           const world::ArenaWorld& world) {
+  if (!std::isfinite(metadata.y)) return false;
+  const glm::vec3 p(metadata.x, kActorCentreY, metadata.z);
   if (enemies_.size() >= 24 || distance(p, player) < 4 ||
       !world.canOccupy(p, enemyHalfExtents()))
     return false;
   for (const auto& e : enemies_)
-    if (overlaps(p, e.position, 0.72F)) return false;
+    if (overlaps(p, e.position, enemySeparation() + 0.02F)) return false;
   enemies_.push_back({nextId_++, p});
   return true;
 }
@@ -80,6 +82,7 @@ bool Gameplay::chooseUpgrade(std::size_t choice) {
   stats_.weapon = choices_[choice];
   stats_.experience -= experienceToNextLevel();
   ++stats_.level;
+  stats_.health = 5;  // Every accepted level-up fully restores player health.
   choices_.clear();
   stats_.phase = Phase::Playing;
   offerUpgrade();
@@ -142,7 +145,8 @@ void Gameplay::update(float dt, const glm::vec3& player,
   for (auto& e : enemies_) {
     const auto actorClear = [&](const glm::vec3& point) {
       for (const auto& other : enemies_)
-        if (other.id != e.id && overlaps(point, other.position, 0.70F))
+        if (other.id != e.id &&
+            overlaps(point, other.position, enemySeparation()))
           return false;
       return true;
     };
@@ -172,7 +176,8 @@ void Gameplay::update(float dt, const glm::vec3& player,
       while (!pending.empty()) {
         const int cell = pending.front();
         pending.pop();
-        const glm::vec3 centre(cell % width + 0.5F, 1.45F, cell / width + 0.5F);
+        const glm::vec3 centre(cell % width + 0.5F, kActorCentreY,
+                               cell / width + 0.5F);
         if (distance(centre, player) < 1.6F && worldClear(centre, player) &&
             actorRouteClear(centre, player)) {
           destination = cell;
@@ -184,7 +189,7 @@ void Gameplay::update(float dt, const glm::vec3& player,
           int nx = cell % width + step[0], nz = cell / width + step[1];
           if (nx < 0 || nx >= width || nz < 0 || nz >= depth) continue;
           int next = nz * width + nx;
-          glm::vec3 point(nx + 0.5F, 1.45F, nz + 0.5F);
+          glm::vec3 point(nx + 0.5F, kActorCentreY, nz + 0.5F);
           if (parent[next] >= 0 ||
               !world.canOccupy(point, enemyHalfExtents()) || !actorClear(point))
             continue;
@@ -198,8 +203,9 @@ void Gameplay::update(float dt, const glm::vec3& player,
         else {
           int next = destination;
           while (parent[next] != start) next = parent[next];
-          const glm::vec3 centre(x + 0.5F, 1.45F, z + 0.5F);
-          const glm::vec3 goal(next % width + 0.5F, 1.45F, next / width + 0.5F);
+          const glm::vec3 centre(x + 0.5F, kActorCentreY, z + 0.5F);
+          const glm::vec3 goal(next % width + 0.5F, kActorCentreY,
+                               next / width + 0.5F);
           // Only centre before a turn when required by solid geometry.
           e.waypoint = worldClear(e.position, goal) ? goal : centre;
         }
@@ -217,7 +223,8 @@ void Gameplay::update(float dt, const glm::vec3& player,
         for (int i = 0; i < count; ++i) {
           const auto next = e.position + step;
           if (!world.canOccupy(next, enemyHalfExtents()) ||
-              overlaps(next, player, 0.77F) || !actorClear(next)) {
+              overlaps(next, player, playerEnemySeparation()) ||
+              !actorClear(next)) {
             e.waypoint.reset();
             break;
           }
@@ -225,7 +232,7 @@ void Gameplay::update(float dt, const glm::vec3& player,
         }
       }
     }
-    if (distance(e.position, player) < 1.15F && hurtClock_ <= 0) {
+    if (distance(e.position, player) < 0.82F && hurtClock_ <= 0) {
       --stats_.health;
       hurtClock_ = 1;
     }

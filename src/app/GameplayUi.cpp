@@ -70,7 +70,7 @@ bool drawGameplayUi(gameplay::Gameplay& game) {
       ImGui::TextWrapped(
           "GAME PAUSED - enemies and the countdown are stopped.");
       ImGui::TextWrapped(
-          "Choose one weapon below to upgrade and resume playing.");
+          "Choose one weapon to fully restore health and resume playing.");
       ImGui::Separator();
       const auto choices = game.upgradeChoices();
       for (std::size_t i = 0; i < choices.size(); ++i) {

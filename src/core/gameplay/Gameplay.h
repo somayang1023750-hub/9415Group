@@ -6,6 +6,8 @@
 #include <random>
 #include <vector>
 
+#include "core/gameplay/ActorGeometry.h"
+
 namespace craft::world {
 class ArenaWorld;
 }
@@ -67,8 +69,8 @@ struct Stats {
 
 // Member A owns simulation. B supplies live map collision/spawn candidates;
 // C consumes these read-only snapshots for models, animation, HUD and
-// instancing. All actor centres use world X/Z with Y=1.45; render proxies match
-// these bounds.
+// instancing. All actor centres use world X/Z with Y=kActorCentreY; render
+// proxies match these bounds.
 class Gameplay {
  public:
   explicit Gameplay(std::uint32_t seed = 9415);
@@ -96,7 +98,7 @@ class Gameplay {
   }
   static constexpr float enemySpeed() { return 4.3F; }  // player default: 5
   static constexpr float blastRadius() { return 3.5F; }
-  static glm::vec3 enemyHalfExtents() { return {0.35F, 0.44F, 0.35F}; }
+  static glm::vec3 enemyHalfExtents() { return gameplay::enemyHalfExtents(); }
 
  private:
   void offerUpgrade();

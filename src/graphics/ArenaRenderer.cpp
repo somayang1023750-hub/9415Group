@@ -7,6 +7,7 @@
 #include <glm/vec3.hpp>
 #include <vector>
 
+#include "core/gameplay/ActorGeometry.h"
 #include "graphics/OpenGL.h"
 #include "graphics/Shader.h"
 #include "world/ArenaWorld.h"
@@ -151,7 +152,7 @@ constexpr std::array<SkinUvLayout, ArenaRenderer::kPlayerPartCount>
     kPlayerSkinLayouts{{kHeadSkin, kTorsoSkin, kRightArmSkin, kLeftArmSkin,
                         kRightLegSkin, kLeftLegSkin}};
 constexpr float kSkinPixelSize = 0.05F;
-constexpr float kPlayerFeetOffset = 0.45F;
+constexpr float kPlayerFeetOffset = gameplay::kActorCentreY - 1.0F;
 constexpr float kWalkSwingAmplitude = 0.55F;
 
 void appendVertex(std::vector<float>& vertices, const glm::vec3& position,
@@ -374,8 +375,9 @@ void ArenaRenderer::drawPlayer(const Shader& shader,
   glm::mat4 actorRoot{1.0F};
   actorRoot = glm::translate(actorRoot, position);
   actorRoot = glm::rotate(actorRoot, yawRadians, glm::vec3{0.0F, 1.0F, 0.0F});
-  const glm::mat4 feet =
-      glm::translate(actorRoot, glm::vec3{0.0F, -kPlayerFeetOffset, 0.0F});
+  const glm::mat4 feet = glm::scale(
+      glm::translate(actorRoot, glm::vec3{0.0F, -kPlayerFeetOffset, 0.0F}),
+      glm::vec3(gameplay::kActorScale));
 
   const glm::vec3 headSize{8.0F * kSkinPixelSize};
   const glm::vec3 torsoSize{8.0F * kSkinPixelSize, 12.0F * kSkinPixelSize,

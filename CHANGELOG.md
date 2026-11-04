@@ -75,3 +75,16 @@ UVs, materials, and lighting remain M2 work; normal mapping remains M3 work.
 - Build and 18 CTest cases passed, including navigation, exact hit counts,
   penetration, reflection, impact explosions and radial damage. UI checks cover
   upgrade/results and restart at three window sizes. Updated A's handoff.
+
+
+## - 2026-11-05 — Level-up healing and local overhead follow view
+
+- Accepted upgrade choices now restore all 5 HP; the English modal explains it.
+- Replaced whole-map fitting with a fixed local orthographic view following the
+  player, tilted approximately 15 degrees from vertical.
+- Scaled player/enemy models and collision footprints to 70%, shared geometry
+  values across rendering/simulation/aim, and grounded smaller bodies at Y=1.32.
+  B's map and spawn metadata remain unchanged.
+- Renamed benchmark workloads for the new camera so old full-map timings are
+  not confused with current rendering. Build, 21 tests and render/input smoke
+  passed; Windows view/comfort acceptance remains local follow-up work.

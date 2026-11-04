@@ -29,7 +29,8 @@ void ArenaScene::update(const MovementInput& input, float deltaSeconds,
   // Dynamic actor collision complements B's solid-block collision.
   for (const auto& enemy : gameplay_.enemies()) {
     const auto delta = player_.position() - enemy.position;
-    if (std::abs(delta.x) < 0.77F && std::abs(delta.z) < 0.77F) {
+    if (std::abs(delta.x) < gameplay::playerEnemySeparation() &&
+        std::abs(delta.z) < gameplay::playerEnemySeparation()) {
       (void)player_.setPosition(previousPosition, world_);
       break;
     }

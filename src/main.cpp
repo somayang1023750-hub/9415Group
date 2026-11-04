@@ -24,7 +24,7 @@ namespace {
 
 constexpr int kInitialWidth = 1280;
 constexpr int kInitialHeight = 720;
-constexpr const char* kSceneWorkload = "milestone1-voxel-arena";
+constexpr const char* kSceneWorkload = "milestone2-local-follow-arena";
 
 craft::app::MovementInput readMovementInput(GLFWwindow* window) {
   return {glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS,
@@ -51,7 +51,7 @@ void printBenchmarkResult(const craft::app::BenchmarkSnapshot& result,
       << " average_fps=" << result.averageFramesPerSecond
       << " resolution=" << framebufferWidth << 'x' << framebufferHeight
       << " workload=" << workload << '\n'
-      << "benchmark_note=Milestone 1 map; compare optimizations using "
+      << "benchmark_note=Local follow camera; compare optimizations using "
          "the same layout, actor snapshot, camera, and framebuffer size\n";
 }
 
@@ -127,8 +127,8 @@ int main() {
             x, y, w, h);
       }
       mouseWasDown = mouseDown;
-      // C: the command-line benchmark retains B's static map workload. Frozen
-      // in-game snapshots have their own label. Simulation is frozen for
+      // C: the command-line benchmark freezes the current local camera scene.
+      // Frozen in-game snapshots have their own label. Simulation is frozen for
       // every measured run, including command-line runs; no timing comparison
       // with dynamic gameplay is implied.
       if (!benchmark.snapshot().running) {
@@ -188,7 +188,7 @@ int main() {
         printBenchmarkResult(
             benchmark.snapshot(), framebufferWidth, framebufferHeight,
             commandLineBenchmark ? kSceneWorkload
-                                 : "milestone2-gameplay-frozen");
+                                 : "milestone2-local-follow-gameplay-frozen");
       }
 
       // Dear ImGui and presentation remain outside the measured scene region.

@@ -2,6 +2,8 @@
 
 #include <glm/vec3.hpp>
 
+#include "core/gameplay/ActorGeometry.h"
+
 namespace craft::world {
 class ArenaWorld;
 }
@@ -16,14 +18,13 @@ struct MovementInput {
 };
 
 // Gameplay-facing movement interface. Input is camera-relative so the same
-// WASD mapping remains intuitive with the fixed diagonal arena camera.
+// WASD mapping remains intuitive with the near-overhead follow camera.
 class PlayerController {
  public:
   PlayerController();
 
   void update(const MovementInput& input, float deltaSeconds,
-              const glm::vec3& cameraForward,
-              const glm::vec3& cameraRight,
+              const glm::vec3& cameraForward, const glm::vec3& cameraRight,
               const world::ArenaWorld& world);
 
   [[nodiscard]] const glm::vec3& position() const noexcept;
@@ -33,7 +34,7 @@ class PlayerController {
   [[nodiscard]] float walkCyclePhase() const noexcept;
   [[nodiscard]] float moveSpeed() const noexcept;
 
-  // Useful for spawning, resets, and later multiplayer/game-state code.
+  // Grounded spawn/reset hook: use metadata X/Z and the shared actor-centre Y.
   [[nodiscard]] bool setPosition(const glm::vec3& position,
                                  const world::ArenaWorld& world);
   void setMoveSpeed(float blocksPerSecond);
@@ -41,7 +42,7 @@ class PlayerController {
  private:
   [[nodiscard]] static const glm::vec3& collisionHalfExtents() noexcept;
 
-  glm::vec3 position_{16.0F, 1.45F, 16.0F};
+  glm::vec3 position_{16.0F, gameplay::kActorCentreY, 16.0F};
   glm::vec3 facingDirection_{0.0F, 0.0F, 1.0F};
   float yawRadians_ = 0.0F;
   float moveSpeed_ = 5.0F;

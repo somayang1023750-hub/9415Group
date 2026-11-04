@@ -33,7 +33,7 @@ projectiles and the blast-radius ring are functional proxies, not M3 particles.
   Crowding still queues naturally in narrow lanes; no actor overlap is allowed.
 - Left-button press edges shoot towards the cursor, independent of player
   facing. Logical window coordinates are unprojected through C's camera onto
-  Y=1.45. ImGui capture suppresses gameplay input. Holding is not automatic fire.
+  Y=1.32. ImGui capture suppresses gameplay input. Holding is not automatic fire.
 - Swept projectile collision prevents tunnelling. Each projectile retains its
   launch-time weapon/speed/damage. Wall collisions win ties with enemy hits.
 
@@ -56,7 +56,8 @@ orange ring marking the full blast radius.
 - Threshold is `current level * 3` EXP. Level-up freezes movement, enemies,
   spawning and timer and opens a centred, dimmed-background English modal.
   **Two distinct weapons are randomly offered** from Balance/Laser/Bomb.
-  Selection equips one, consumes EXP, increments level and resumes (or offers
+  Selection equips one, consumes EXP, increments level, restores all 5 HP and
+  resumes (or offers
   another level if enough EXP remains). Damage no longer grows with level, so
   the requested 2/4/1 hit counts remain valid at every level.
 - Player has 5 HP and one-second invulnerability after contact damage. Survive
@@ -73,7 +74,7 @@ orange ring marking the full blast radius.
 `Gameplay::update(dt, playerPosition, world, optionalShotTarget)` reads the live
 world without owning or editing it. `spawnEnemy(position, player, world)` checks
 solid clearance, distance, enemy occupancy and cap. `enemyHalfExtents()` is
-`(0.35, 0.44, 0.35)`; actor centres rest at Y=1.45. Live map changes are checked
+`(0.245, 0.308, 0.245)`; actor centres rest at Y=1.32. Live map changes are checked
 while moving/replanning. Continue calling `ArenaScene::rebuildWorldGeometry()`
 after block edits. Keep the player spawn clear for restart.
 
@@ -105,9 +106,9 @@ layout. Bomb blasts currently do not destroy map blocks.
 - `aimOnPlane` uses logical cursor/window dimensions and the actual framebuffer
   view-projection; preserve that camera/HiDPI convention for a future crosshair.
 - Benchmark timing boundaries remain unchanged. Command-line benchmark starts
-  before spawning and freezes the static scene under `milestone1-voxel-arena`.
+  before spawning and freezes the static scene under `milestone2-local-follow-arena`.
   In-game benchmark freezes the current actor snapshot under
-  `milestone2-gameplay-frozen`; draw-call counts include blast rings. This is
+  `milestone2-local-follow-gameplay-frozen`; draw-call counts include blast rings. This is
   smoke evidence, not baseline-versus-instancing performance evidence.
 
 ## Validation
@@ -122,7 +123,7 @@ xvfb-run -a -s '-screen 0 1280x720x24' \
   env LIBGL_ALWAYS_SOFTWARE=1 CRAFT_BENCHMARK=1 ./build/Craft
 ```
 
-- Full application/test build passed; **18/18 CTest cases passed**. Coverage
+- Full application/test build passed; **21/21 CTest cases passed**. Coverage
   includes B's map tests, movement/aim, spawning, crowd rerouting through cover,
   enemy speed, EXP/selection/reset, terminal states, weapon speeds/cooldowns,
   exact 2/4/1 hit counts after selection, laser penetration/one reflection and
@@ -153,5 +154,33 @@ normal-mapping and BRDF challenges are not claimed here.
 > navigation and Balance/Laser/Bomb behaviours. Level-up offers two random
 > distinct weapons. B's collision/spawn interfaces are preserved; C can consume
 > actor/shot/hit/blast snapshots for final presentation and instancing. Build,
-> 18 tests and UI/render checks passed; Windows balance and CSE acceptance remain
+> 21 tests and UI/render checks passed; Windows balance and CSE acceptance remain
 > follow-up work. M3 particles are still deferred.
+
+
+## Local follow camera and smaller grounded actors
+
+The latest requested view shows the player's neighbourhood, with a fixed
+orthographic half-height of 8 blocks. Camera offset is 7 blocks horizontally and
+26 vertically (about 15 degrees from vertical). Player position is always the
+view target; zoom does not change near map edges or adapt to fit the arena.
+Distant scene areas fall outside the normal view clipping volume. No Day/Night
+lighting, fog or exploration system is implied by this camera change.
+
+Player and enemy models use 70% of the old world scale. Shared `ActorGeometry.h`
+provides the render scale, grounded actor-centre height (1.32), player extents
+(0.294, 0.308, 0.294), enemy extents (0.245, 0.308, 0.245), and separation values.
+Player feet and enemy base remain above the floor at Y=1. Actor/world collision,
+actor separation, contact reach, bullet hits and the aim plane use the new
+proportions. B's map/metadata is unchanged: player and enemy spawn consumers take
+its X/Z and ground the smaller body at the shared height. C should use these
+shared values when replacing models; do not hardcode the old 1.45 height.
+
+A valid upgrade selection fully heals to 5 HP, including successive level-ups;
+an invalid choice does not heal or resume. The English modal explains the heal.
+New tests cover wounded-player upgrade healing, actor scaling/grounding and
+camera follow/scale/clipping/aim across landscape, portrait and ultrawide aspects.
+All 21 tests passed; runtime screenshot confirms local cropped surroundings and
+near-overhead rendering. The 240-frame render smoke passed with the new camera
+workload label; timings cannot be compared directly with the older full-map view.
+Windows visual comfort/zoom acceptance remains local playtesting work.

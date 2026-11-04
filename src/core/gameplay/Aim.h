@@ -5,12 +5,14 @@
 #include <glm/vec3.hpp>
 #include <glm/vec4.hpp>
 #include <optional>
+
+#include "core/gameplay/ActorGeometry.h"
 namespace craft::gameplay {
 // C camera hook: logical window cursor coordinates, actual framebuffer VP.
 // Aim at actor-centre height so the cursor and horizontal bullets agree.
 inline std::optional<glm::vec3> aimOnPlane(const glm::mat4& vp, double x,
                                            double y, int width, int height,
-                                           float planeY = 1.45F) {
+                                           float planeY = kActorCentreY) {
   if (width <= 0 || height <= 0 || x < 0 || y < 0 || x > width || y > height)
     return std::nullopt;
   const auto inv = glm::inverse(vp);
