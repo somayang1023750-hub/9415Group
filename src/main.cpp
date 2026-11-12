@@ -42,7 +42,8 @@ void startBenchmark(craft::graphics::Window& window,
 
 void printBenchmarkResult(const craft::app::BenchmarkSnapshot& result,
                           int framebufferWidth, int framebufferHeight,
-                          const char* workload, craft::world::ArenaLevel level, bool normalMapping) {
+                          const char* workload, craft::world::ArenaLevel level,
+                          bool normalMapping) {
   std::cout
       << std::fixed << std::setprecision(4)
       << "benchmark_result sample_count=" << result.measuredFrames
@@ -153,20 +154,27 @@ int main() {
           worldVertexCount / 3 +
           craft::graphics::ArenaRenderer::kPlayerPartCount *
               craft::graphics::ArenaRenderer::kTrianglesPerPlayerPart;
-      const int enemyCount =
-          static_cast<int>(arenaScene.gameplay().enemies().size());
+      int enemyParts = 0, enemyDrawCalls = 0;
+      bool kinds[3] = {};
+      for (const auto& enemy : arenaScene.gameplay().enemies()) {
+        const int parts =
+            craft::graphics::ArenaRenderer::enemyPartCount(enemy.kind);
+        enemyParts += parts;
+        const int kind = static_cast<int>(enemy.kind);
+        if (!kinds[kind]) {
+          enemyDrawCalls += parts;
+          kinds[kind] = true;
+        }
+      }
       uiDiagnostics.renderedTriangles +=
-          enemyCount * craft::graphics::ArenaRenderer::kZombiePartCount *
-          craft::graphics::ArenaRenderer::kTrianglesPerPlayerPart;
+          enemyParts * craft::graphics::ArenaRenderer::kTrianglesPerPlayerPart;
       const int proxyCount =
           static_cast<int>(arenaScene.gameplay().bullets().size() +
                            arenaScene.gameplay().orbs().size());
       uiDiagnostics.renderedTriangles += proxyCount * 12;
       uiDiagnostics.drawCalls =
           arenaScene.worldDrawCallCount() +
-          craft::graphics::ArenaRenderer::kPlayerPartCount +
-          (enemyCount > 0 ? craft::graphics::ArenaRenderer::kZombiePartCount
-                          : 0) +
+          craft::graphics::ArenaRenderer::kPlayerPartCount + enemyDrawCalls +
           proxyCount +
           static_cast<int>(arenaScene.gameplay().explosions().size());
       uiDiagnostics.framebufferWidth = framebufferWidth;
@@ -197,7 +205,8 @@ int main() {
       else
         glClearColor(0.08F, 0.10F, 0.14F, 1.0F);
       glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-      arenaScene.render(shader, framebufferWidth, framebufferHeight, uiResult.normalMapping);
+      arenaScene.render(shader, framebufferWidth, framebufferHeight,
+                        uiResult.normalMapping);
 
       const bool benchmarkCompleted = benchmark.endSceneFrame();
       if (benchmarkCompleted) {

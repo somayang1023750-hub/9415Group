@@ -25,12 +25,12 @@ void ArenaScene::selectLevel(world::ArenaLevel level) {
   if (level == level_) return;
   world_ = world::ArenaWorld(world::makeArenaLayout(level));
   rebuildWorldGeometry();
-  resetGameplay();
   level_ = level;
+  resetGameplay();
 }
 
 void ArenaScene::resetGameplay() {
-  gameplay_.reset();
+  gameplay_.reset(level_);
   enemyRenderStates_.clear();
   if (!player_.setPosition(world_.playerSpawn(), world_))
     throw std::logic_error("Edited map blocks the player spawn");
@@ -59,8 +59,9 @@ void ArenaScene::updateInternal(const MovementInput& input, float deltaSeconds,
     // Dynamic actor collision complements B's solid-block collision.
     for (const auto& enemy : gameplay_.enemies()) {
       const auto delta = player_.position() - enemy.position;
-      if (std::abs(delta.x) < gameplay::playerEnemySeparation() &&
-          std::abs(delta.z) < gameplay::playerEnemySeparation()) {
+      const auto separation = gameplay::playerHalfExtents() +
+                              gameplay::enemyProfile(enemy.kind).halfExtents;
+      if (std::abs(delta.x) < separation.x && std::abs(delta.z) < separation.z) {
         (void)player_.setPosition(previousPosition, world_);
         break;
       }
@@ -106,7 +107,8 @@ void ArenaScene::updateInternal(const MovementInput& input, float deltaSeconds,
               : 1.0F;
       state.walkCyclePhase = std::fmod(
           state.walkCyclePhase +
-              std::clamp(deltaSeconds, 0.0F, 0.1F) * 10.0F * terrainSpeed,
+              std::clamp(deltaSeconds, 0.0F, 0.1F) * 10.0F * terrainSpeed *
+                  gameplay::enemyProfile(enemy.kind).speed / gameplay::Gameplay::enemySpeed(),
           6.2831853F);
     }
     if (state.attackAnimationTime >= 0.0F) {
@@ -173,7 +175,7 @@ void ArenaScene::render(const graphics::Shader& shader, int framebufferWidth,
         yawRadians = std::atan2(facing.x, facing.z);
     }
     zombieInstances.push_back({enemy.position, yawRadians, walkCyclePhase,
-                               moving, attackAnimationTime});
+                               moving, attackAnimationTime, enemy.kind});
   }
   renderer_.drawZombies(shader, viewProjection, zombieInstances);
   for (const auto& bullet : gameplay_.bullets()) {

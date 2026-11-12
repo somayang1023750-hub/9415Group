@@ -1,11 +1,16 @@
 # Member A progress - Milestone 2 gameplay increment
 
-Updated: 2026-11-11 (Australia/Sydney).
+Updated: 2026-11-12 (Australia/Sydney).
 
-Status: the requested weapon progression, firebomb effect and progressive
-spawning have been restored on top of the current remote baseline. The
-application target compiles locally; Member A acceptance and CSE/VLAB validation
-remain outstanding.
+Status (2026-11-12): three typed monsters and Day/Night encounter ramps are
+implemented on team baseline `8c1a587`. See [mixed enemy encounters](member-a-monsters.md)
+for exact profiles, generation curves, rendering/navigation interfaces and
+current validation. This latest monster increment does not complete weapon hit
+particles or refresh the team's six pre-existing failing assertions.
+
+The older sections below describe the baseline weapon/gameplay integration;
+where they describe only one enemy kind, the linked monster specification is
+the current source of truth.
 
 ## Scope and milestone boundary
 

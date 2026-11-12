@@ -7,12 +7,13 @@
 #include <optional>
 #include <vector>
 
+#include "core/gameplay/EnemyTypes.h"
 #include "graphics/Texture.h"
 
 namespace craft::world {
 class ArenaWorld;
 enum class ArenaLevel;
-}
+}  // namespace craft::world
 
 namespace craft::graphics {
 
@@ -28,10 +29,16 @@ class ArenaRenderer {
     float walkCyclePhase = 0.0F;
     bool moving = false;
     float attackAnimationTime = -1.0F;
+    gameplay::EnemyKind kind = gameplay::EnemyKind::Zombie;
   };
 
   static constexpr int kPlayerPartCount = 6;
   static constexpr int kZombiePartCount = 6;
+  static constexpr int kSpiderPartCount = 10;
+  static int enemyPartCount(gameplay::EnemyKind kind) {
+    return kind == gameplay::EnemyKind::Spider ? kSpiderPartCount
+                                               : kZombiePartCount;
+  }
   static constexpr int kTrianglesPerPlayerPart = 12;
   static constexpr float kZombieAttackAnimationSeconds = 0.54F;
 
@@ -53,7 +60,8 @@ class ArenaRenderer {
   void drawPlayer(const Shader& shader, const glm::mat4& viewProjection,
                   const glm::vec3& position, float yawRadians,
                   float walkCyclePhase, bool moving) const;
-  // Draw all zombie poses in six instanced part batches, independent of count.
+  // C: legacy API name, now batches all three kinds (six parts per biped,
+  // ten per spider). Batch count depends on present kinds, not actor count.
   // If the optional skin asset is missing, use a green flat-shaded model.
   void drawZombies(const Shader& shader, const glm::mat4& viewProjection,
                    const std::vector<ZombieInstance>& zombies) const;
@@ -84,6 +92,8 @@ class ArenaRenderer {
   Texture masonry_;
   Texture masonryNormal_;
   std::optional<Texture> zombieTexture_;
+  std::optional<Texture> golemTexture_;
+  std::optional<Texture> spiderTexture_;
   unsigned int worldVertexArray_ = 0;
   unsigned int worldVertexBuffer_ = 0;
   int worldVertexCount_ = 0;

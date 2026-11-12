@@ -10,7 +10,7 @@ The current gameplay build opens an OpenGL 3.3 window, shows a start screen, and
 - Glowing EXP sphere visuals or layered player-skin overlays.
 - Chunk streaming or indexed meshing.
 
-Member A's M2 increment adds one enemy type, cursor-aimed weapons, EXP attraction,
+Member A's gameplay includes three enemy types, cursor-aimed weapons, EXP attraction,
 weapon upgrades/evolutions, progressive spawn batches, HP/countdown/outcomes and restart. Enemies use
 the new hierarchical zombie model with proximity-triggered arm-raise animation;
 bullets and EXP remain temporary coloured cube proxies. The zombie skin is
@@ -118,8 +118,13 @@ double damage and increase fire rate by 50%. Its fifth selection evolves it
 into a firebomb with orange-red flight sparks and a three-second burning area
 that deals 2 damage each second within its radius.
 
-Enemies use persistent waypoints and live occupancy to reroute, moving at 3.3
-blocks/second versus the player's 5. Each two-second spawn batch grows by one
+Enemies use typed body clearance and persistent waypoints to reroute. Zombies
+have 4 HP, 1 damage, speed 3.3 and EXP 1; larger Golems have 8 HP, 2 damage,
+speed 2.1 and EXP 2; smaller Spiders have exactly 3.4 HP, 1 damage, speed 4.5
+and EXP 1. Player speed is 5. Day Golems ramp in after 60 seconds to a 70:30
+Zombie/Golem mix at 120 seconds. Night Golems ramp after 30 seconds and Spiders
+after 60, reaching 60:15:25 at 120 seconds. These are generation weights, not
+live population quotas. See [mixed enemy encounters](docs/member-a-monsters.md). Each two-second spawn batch grows by one
 enemy every 30 seconds, subject to the 24-enemy cap. HP reaching zero or surviving 180 simulation
 seconds opens a clear English DEFEAT/VICTORY dialog with Play again. The status
 panel shows HP, time, EXP, level and weapon progression. Restart resets player and gameplay

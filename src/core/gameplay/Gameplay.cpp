@@ -4,6 +4,7 @@
 #include <array>
 #include <cmath>
 #include <glm/geometric.hpp>
+#include <glm/vec2.hpp>
 #include <limits>
 #include <queue>
 #include <utility>
@@ -18,8 +19,10 @@ constexpr float radius = 0.10F;
 float distance(const glm::vec3& a, const glm::vec3& b) {
   return glm::length(glm::vec3(a.x - b.x, 0, a.z - b.z));
 }
-bool overlaps(const glm::vec3& a, const glm::vec3& b, float size) {
-  return std::abs(a.x - b.x) < size && std::abs(a.z - b.z) < size;
+bool overlaps(const glm::vec3& a, const glm::vec3& ah, const glm::vec3& b,
+              const glm::vec3& bh) {
+  return std::abs(a.x - b.x) < ah.x + bh.x - 0.00001F &&
+         std::abs(a.z - b.z) < ah.z + bh.z - 0.00001F;
 }
 // Swept segment versus expanded AABB: prevents fast bullets tunnelling through
 // thin cover/enemies and lets the nearest collision win (walls win ties).
@@ -47,6 +50,10 @@ float intersection(glm::vec3 from, glm::vec3 to, glm::vec3 lo, glm::vec3 hi,
 }
 }  // namespace
 Gameplay::Gameplay(std::uint32_t seed) : seed_(seed), random_(seed) {}
+void Gameplay::reset(world::ArenaLevel level) {
+  level_ = level;
+  reset();
+}
 void Gameplay::reset() {
   stats_ = {};
   enemies_.clear();
@@ -67,15 +74,18 @@ void Gameplay::reset() {
   elapsedSeconds_ = 0.0F;
 }
 bool Gameplay::spawnEnemy(const glm::vec3& metadata, const glm::vec3& player,
-                          const world::ArenaWorld& world) {
+                          const world::ArenaWorld& world, EnemyKind kind) {
   if (!std::isfinite(metadata.y)) return false;
-  const glm::vec3 p(metadata.x, kActorCentreY, metadata.z);
+  const auto profile = enemyProfile(kind);
+  const glm::vec3 p(metadata.x, profile.centreY, metadata.z);
   if (enemies_.size() >= 24 || distance(p, player) < 4 ||
-      !world.canOccupy(p, enemyHalfExtents()))
+      !world.canOccupy(p, profile.halfExtents))
     return false;
   for (const auto& e : enemies_)
-    if (overlaps(p, e.position, enemySeparation() + 0.02F)) return false;
-  enemies_.push_back({nextId_++, p});
+    if (overlaps(p, profile.halfExtents + glm::vec3(.01F), e.position,
+                 enemyProfile(e.kind).halfExtents))
+      return false;
+  enemies_.push_back({nextId_++, p, profile.health, std::nullopt, kind});
   return true;
 }
 void Gameplay::offerUpgrade() {
@@ -84,11 +94,11 @@ void Gameplay::offerUpgrade() {
   for (const auto& state : weapons_) {
     if (state.evolved) continue;
     if (state.upgrades < kMaximumWeaponUpgrades)
-      available.push_back({state.weapon, UpgradeKind::Upgrade,
-                           state.upgrades + 1});
+      available.push_back(
+          {state.weapon, UpgradeKind::Upgrade, state.upgrades + 1});
     else
-      available.push_back({state.weapon, UpgradeKind::Evolution,
-                           kMaximumWeaponUpgrades + 1});
+      available.push_back(
+          {state.weapon, UpgradeKind::Evolution, kMaximumWeaponUpgrades + 1});
   }
   for (const auto weapon : {Weapon::Laser, Weapon::Bomb})
     if (weaponCount(weapon) == 0)
@@ -163,23 +173,37 @@ void Gameplay::update(float dt, const glm::vec3& player,
                      [](const Explosion& blast) { return blast.age >= 0.4F; }),
       explosions_.end());
   stats_.remainingSeconds = std::max(0.F, stats_.remainingSeconds - dt);
-  for (float& clock : weaponShotClocks_)
-    clock = std::max(0.0F, clock - dt);
+  for (float& clock : weaponShotClocks_) clock = std::max(0.0F, clock - dt);
   hurtClock_ = std::max(0.F, hurtClock_ - dt);
   spawnClock_ -= dt;
   if (spawnClock_ <= 0) {
     const auto& candidates = world.enemySpawnCandidates();
     if (!candidates.empty()) {
-      const std::size_t start = random_() % candidates.size();
+      const auto weights = enemySpawnWeights(level_, elapsedSeconds_);
+      std::discrete_distribution<int> chooseKind(weights.begin(),
+                                                 weights.end());
       const std::size_t batchSize =
           1 + static_cast<std::size_t>(elapsedSeconds_ /
                                        kSpawnBatchIncreaseSeconds);
-      std::size_t spawned = 0;
-      for (std::size_t i = 0;
-           i < candidates.size() && spawned < batchSize; ++i) {
-        if (spawnEnemy(candidates[(start + i) % candidates.size()], player,
-                       world))
-          ++spawned;
+      for (std::size_t slot = 0; slot < batchSize && enemies_.size() < 24;
+           ++slot) {
+        const int selected = chooseKind(random_);
+        const std::size_t start = random_() % candidates.size();
+        bool spawned = false;
+        // Try every entry with the requested body's actual clearance. If all
+        // are blocked, another eligible type may fill the slot; never introduce
+        // night-only spiders into Day or a type whose ramp has not started.
+        for (int attempt = 0; attempt < 3 && !spawned; ++attempt) {
+          const int index = (selected + attempt) % 3;
+          if (weights[index] <= 0) continue;
+          for (std::size_t i = 0; i < candidates.size(); ++i)
+            if (spawnEnemy(candidates[(start + i) % candidates.size()], player,
+                           world, static_cast<EnemyKind>(index))) {
+              spawned = true;
+              break;
+            }
+        }
+        if (!spawned) break;
       }
     }
     spawnClock_ = kEnemySpawnIntervalSeconds;
@@ -225,43 +249,81 @@ void Gameplay::update(float dt, const glm::vec3& player,
       }
     }
   }
-  // Replan around live actor occupancy, rather than forcing every enemy into
-  // the same static flow-field lane. Keep each waypoint until its centre is
-  // reached: recomputing it on crossing a cell boundary caused turn
-  // oscillation.
+  // Front actors move first, freeing space for followers. Vector order/IDs
+  // remain stable for C's animation and instance snapshots.
+  std::vector<std::size_t> order(enemies_.size());
+  for (std::size_t i = 0; i < order.size(); ++i) order[i] = i;
+  std::stable_sort(order.begin(), order.end(),
+                   [&](std::size_t a, std::size_t b) {
+                     return distance(enemies_[a].position, player) <
+                            distance(enemies_[b].position, player);
+                   });
   constexpr int width = world::ArenaWorld::kWidth,
                 depth = world::ArenaWorld::kDepth;
-  const auto worldClear = [&](const glm::vec3& from, const glm::vec3& to) {
-    const int count =
-        std::max(1, static_cast<int>(std::ceil(distance(from, to) / 0.1F)));
-    for (int i = 1; i <= count; ++i)
-      if (!world.canOccupy(from + (to - from) * (static_cast<float>(i) / count),
-                           enemyHalfExtents()))
-        return false;
-    return true;
-  };
-  for (auto& e : enemies_) {
+  for (const auto index : order) {
+    auto& e = enemies_[index];
+    const auto profile = enemyProfile(e.kind);
+    const auto worldClear = [&](glm::vec3 from, glm::vec3 to) {
+      from.y = to.y = profile.centreY;
+      const int count =
+          std::max(1, static_cast<int>(std::ceil(distance(from, to) / .1F)));
+      for (int i = 0; i <= count; ++i)
+        if (!world.canOccupy(
+                from + (to - from) * (static_cast<float>(i) / count),
+                profile.halfExtents))
+          return false;
+      return true;
+    };
     const auto actorClear = [&](const glm::vec3& point) {
       for (const auto& other : enemies_)
         if (other.id != e.id &&
-            overlaps(point, other.position, enemySeparation()))
+            overlaps(point, profile.halfExtents, other.position,
+                     enemyProfile(other.kind).halfExtents))
           return false;
       return true;
     };
-    const auto actorRouteClear = [&](const glm::vec3& from,
-                                     const glm::vec3& to) {
-      const int count =
-          std::max(1, static_cast<int>(std::ceil(distance(from, to) / 0.1F)));
-      for (int i = 1; i <= count; ++i)
-        if (!actorClear(from + (to - from) * (static_cast<float>(i) / count)))
-          return false;
+    const auto actorRouteClear = [&](glm::vec3 from, glm::vec3 to) {
+      from.y = to.y = 0;
+      for (const auto& other : enemies_)
+        if (other.id != e.id) {
+          auto centre = other.position;
+          centre.y = 0;
+          auto extents =
+              profile.halfExtents + enemyProfile(other.kind).halfExtents;
+          extents.y = 1;
+          if (intersection(from, to, centre - extents, centre + extents) <= 1)
+            return false;
+        }
       return true;
     };
-    if (e.waypoint && distance(e.position, *e.waypoint) < 0.02F)
+    // Stop outside the combined player/body footprint, rather than demanding
+    // that a large golem fit at the player's centre next to a wall.
+    const auto approach = [&](glm::vec3 from) {
+      auto direction = from - player;
+      direction.y = 0;
+      const float length = glm::length(direction);
+      if (length < .001F) return from;
+      direction /= length;
+      const auto combined = profile.halfExtents + playerHalfExtents();
+      const float x = std::abs(direction.x) > .0001F
+                          ? combined.x / std::abs(direction.x)
+                          : 10000.F;
+      const float z = std::abs(direction.z) > .0001F
+                          ? combined.z / std::abs(direction.z)
+                          : 10000.F;
+      const float stop = std::min(x, z) + .015F;
+      auto goal = player + direction * stop;
+      goal.y = profile.centreY;
+      return length > stop ? goal : from;
+    };
+    const auto direct = approach(e.position);
+    if (worldClear(e.position, direct) && actorRouteClear(e.position, direct))
+      e.waypoint = direct;
+    if (e.waypoint && distance(e.position, *e.waypoint) < .02F)
       e.waypoint.reset();
     if (!e.waypoint) {
-      const int x = static_cast<int>(std::floor(e.position.x));
-      const int z = static_cast<int>(std::floor(e.position.z));
+      const int x = static_cast<int>(std::floor(e.position.x)),
+                z = static_cast<int>(std::floor(e.position.z));
       if (x < 0 || x >= width || z < 0 || z >= depth) continue;
       const int start = z * width + x;
       std::array<int, width * depth> parent;
@@ -269,69 +331,71 @@ void Gameplay::update(float dt, const glm::vec3& player,
       std::queue<int> pending;
       pending.push(start);
       parent[start] = start;
-      int destination = -1;
+      int destination = -1, fallback = start;
+      float closest = distance(e.position, player);
       constexpr int steps[][2] = {{1, 0}, {0, 1}, {-1, 0}, {0, -1}};
       while (!pending.empty()) {
         const int cell = pending.front();
         pending.pop();
-        const glm::vec3 centre(cell % width + 0.5F, kActorCentreY,
-                               cell / width + 0.5F);
-        if (distance(centre, player) < 1.6F && worldClear(centre, player) &&
-            actorRouteClear(centre, player)) {
+        const glm::vec3 centre =
+            cell == start ? e.position
+                          : glm::vec3(cell % width + .5F, profile.centreY,
+                                      cell / width + .5F);
+        const auto goal = approach(centre);
+        if (distance(centre, player) < 1.8F && worldClear(centre, goal) &&
+            actorRouteClear(centre, goal)) {
           destination = cell;
           break;
         }
-        // Rotate tie order per actor to spread equal-length routes.
+        if (distance(centre, player) < closest - .1F) {
+          closest = distance(centre, player);
+          fallback = cell;
+        }
         for (int offset = 0; offset < 4; ++offset) {
           const auto& step = steps[(offset + e.id) % 4];
-          int nx = cell % width + step[0], nz = cell / width + step[1];
+          const int nx = cell % width + step[0], nz = cell / width + step[1];
           if (nx < 0 || nx >= width || nz < 0 || nz >= depth) continue;
-          int next = nz * width + nx;
-          glm::vec3 point(nx + 0.5F, kActorCentreY, nz + 0.5F);
+          const int next = nz * width + nx;
+          const glm::vec3 point(nx + .5F, profile.centreY, nz + .5F);
           if (parent[next] >= 0 ||
-              !world.canOccupy(point, enemyHalfExtents()) || !actorClear(point))
+              !world.canOccupy(point, profile.halfExtents) ||
+              !actorClear(point) || !actorRouteClear(centre, point))
             continue;
+          if (cell == start && !worldClear(centre, point)) continue;
           parent[next] = cell;
           pending.push(next);
         }
       }
-      if (destination >= 0) {
-        if (destination == start)
-          e.waypoint = player;
-        else {
-          int next = destination;
-          while (parent[next] != start) next = parent[next];
-          const glm::vec3 centre(x + 0.5F, kActorCentreY, z + 0.5F);
-          const glm::vec3 goal(next % width + 0.5F, kActorCentreY,
-                               next / width + 0.5F);
-          // Only centre before a turn when required by solid geometry.
-          e.waypoint = worldClear(e.position, goal) ? goal : centre;
-        }
+      if (destination < 0 && fallback != start) destination = fallback;
+      if (destination == start)
+        e.waypoint = approach(e.position);
+      else if (destination >= 0) {
+        int next = destination;
+        while (parent[next] != start) next = parent[next];
+        e.waypoint =
+            glm::vec3(next % width + .5F, profile.centreY, next / width + .5F);
       }
     }
     if (e.waypoint) {
-      glm::vec3 delta = *e.waypoint - e.position;
+      auto delta = *e.waypoint - e.position;
       delta.y = 0;
       const float length = glm::length(delta);
-      if (length > 0.001F) {
-        const int currentCellX =
-            static_cast<int>(std::floor(e.position.x));
-        const int currentCellZ =
-            static_cast<int>(std::floor(e.position.z));
-        const float terrainSpeed =
-            world.isWaterSurface(currentCellX, currentCellZ)
+      if (length > .001F) {
+        const float terrain =
+            world.isWaterSurface(static_cast<int>(std::floor(e.position.x)),
+                                 static_cast<int>(std::floor(e.position.z)))
                 ? world::ArenaWorld::kWaterMovementSpeedMultiplier
-                : 1.0F;
-        const float travel =
-            std::min(length, enemySpeed() * terrainSpeed * dt);
+                : 1.F;
+        const float travel = std::min(length, profile.speed * terrain * dt);
         const int count =
-            std::max(1, static_cast<int>(std::ceil(travel / 0.08F)));
-        const glm::vec3 step = delta / length * (travel / count);
+            std::max(1, static_cast<int>(std::ceil(travel / .06F)));
+        const auto step = delta / length * (travel / count);
         for (int i = 0; i < count; ++i) {
           const auto next = e.position + step;
-          if (!world.canOccupy(next, enemyHalfExtents()) ||
-              overlaps(next, player, playerEnemySeparation()) ||
-              !actorClear(next)) {
+          if (!world.canOccupy(next, profile.halfExtents) ||
+              !actorClear(next) ||
+              overlaps(next, profile.halfExtents, player,
+                       playerHalfExtents())) {
             e.waypoint.reset();
             break;
           }
@@ -339,17 +403,25 @@ void Gameplay::update(float dt, const glm::vec3& player,
         }
       }
     }
-    if (distance(e.position, player) < 0.82F && hurtClock_ <= 0) {
-      --stats_.health;
-      hurtClock_ = 1;
-      glm::vec3 direction{player.x - e.position.x, 0.0F,
-                          player.z - e.position.z};
-      const float directionLength = glm::length(direction);
-      if (directionLength > 0.0001F)
-        direction /= directionLength;
-      else
-        direction = {0.0F, 0.0F, 1.0F};
-      attacks_.push_back({e.id, e.position, direction});
+    const auto combined = profile.halfExtents + playerHalfExtents();
+    const auto gap =
+        glm::max(glm::abs(e.position - player) - combined, glm::vec3(0));
+    if (glm::length(glm::vec2(gap.x, gap.z)) < .25F && hurtClock_ <= 0) {
+      // Tiny LOS probe prevents melee through the corner of a solid block.
+      bool visible = true;
+      for (int i = 1; i <= 8; ++i)
+        if (!world.canOccupy(e.position + (player - e.position) * (i / 8.F),
+                             glm::vec3(.015F)))
+          visible = false;
+      if (visible) {
+        stats_.health = std::max(0, stats_.health - profile.contactDamage);
+        hurtClock_ = 1;
+        auto direction = player - e.position;
+        direction.y = 0;
+        direction = glm::length(direction) > .0001F ? glm::normalize(direction)
+                                                    : glm::vec3(0, 0, 1);
+        attacks_.push_back({e.id, e.position, direction});
+      }
     }
   }
   for (auto& area : burningAreas_) {
@@ -409,8 +481,9 @@ void Gameplay::update(float dt, const glm::vec3& player,
             b.weapon == Weapon::Laser && !b.piercesEnemies;
         if (alreadyHit && !blocksAfterReflection) continue;
         const float t = intersection(
-            b.position, end, e.position - enemyHalfExtents() - padding,
-            e.position + enemyHalfExtents() + padding);
+            b.position, end,
+            e.position - enemyProfile(e.kind).halfExtents - padding,
+            e.position + enemyProfile(e.kind).halfExtents + padding);
         if (t < closest) {
           closest = t;
           victim = &e;
@@ -484,7 +557,7 @@ void Gameplay::damageEnemy(Enemy& enemy, int damage, const glm::vec3& impact,
   hits_.push_back({impact, enemy.id, enemy.health <= 0, weapon});
   if (enemy.health <= 0) {
     ++stats_.kills;
-    orbs_.push_back({enemy.position});
+    orbs_.push_back({enemy.position, enemyProfile(enemy.kind).experience});
   }
 }
 void Gameplay::explode(const glm::vec3& position, int damage, float blastRadius,
@@ -502,9 +575,7 @@ int Gameplay::weaponCount(Weapon weapon) const {
       weapons_.begin(), weapons_.end(),
       [weapon](const WeaponState& state) { return state.weapon == weapon; }));
 }
-WeaponProfile weaponProfile(Weapon weapon) {
-  return weaponProfile(weapon, 0);
-}
+WeaponProfile weaponProfile(Weapon weapon) { return weaponProfile(weapon, 0); }
 WeaponProfile weaponProfile(Weapon weapon, int upgrades) {
   WeaponProfile profile{};
   switch (weapon) {

@@ -15,6 +15,7 @@
 #include "graphics/OpenGL.h"
 #include "graphics/Shader.h"
 #include "world/ArenaWorld.h"
+#include "core/gameplay/EnemyTypes.h"
 
 namespace craft::graphics {
 
@@ -384,6 +385,15 @@ ArenaRenderer::ArenaRenderer(const world::ArenaWorld& world,
     zombieTexture_.emplace(zombieTexturePath, Texture::Magnification::Nearest,
                            Texture::Minification::Nearest);
   }
+  // Original procedural skins; retain optional-skin fallbacks for C's tools.
+  const auto golemSkin = zombieTexturePath.parent_path() / "golem.png";
+  const auto spiderSkin = zombieTexturePath.parent_path() / "spider.png";
+  if (std::filesystem::exists(golemSkin))
+    golemTexture_.emplace(golemSkin, Texture::Magnification::Nearest,
+                          Texture::Minification::Nearest);
+  if (std::filesystem::exists(spiderSkin))
+    spiderTexture_.emplace(spiderSkin, Texture::Magnification::Nearest,
+                           Texture::Minification::Nearest);
   glGenVertexArrays(1, &worldVertexArray_);
   glGenBuffers(1, &worldVertexBuffer_);
   glGenVertexArrays(1, &sandVertexArray_);
@@ -655,116 +665,163 @@ void ArenaRenderer::drawZombies(
     const Shader& shader, const glm::mat4& viewProjection,
     const std::vector<ZombieInstance>& zombies) const {
   if (zombies.empty()) return;
+  // C: keep one batch per body part and type. Attributes 3-6 remain the
+  // instance matrix, attribute 7 the normal; terrain/light contracts unchanged.
+  for (auto kind : {gameplay::EnemyKind::Zombie, gameplay::EnemyKind::Golem,
+                    gameplay::EnemyKind::Spider}) {
+    std::vector<ZombieInstance> group;
+    for (const auto& actor : zombies)
+      if (actor.kind == kind) group.push_back(actor);
+    if (group.empty()) continue;
+    const bool golem = kind == gameplay::EnemyKind::Golem;
+    const bool spider = kind == gameplay::EnemyKind::Spider;
 
-  const glm::vec3 headSize{8.0F * kSkinPixelSize};
-  const glm::vec3 torsoSize{8.0F * kSkinPixelSize, 12.0F * kSkinPixelSize,
-                            4.0F * kSkinPixelSize};
-  const glm::vec3 limbSize{4.0F * kSkinPixelSize, 12.0F * kSkinPixelSize,
-                           4.0F * kSkinPixelSize};
-  const float shoulderY = 24.0F * kSkinPixelSize;
-  const float shoulderX = 6.0F * kSkinPixelSize;
-  const float hipY = 12.0F * kSkinPixelSize;
-  const float hipX = 2.0F * kSkinPixelSize;
-  std::array<std::vector<glm::mat4>, kZombiePartCount> partModels;
-  for (auto& models : partModels) models.reserve(zombies.size());
+    const glm::vec3 headSize{8.0F * kSkinPixelSize};
+    const glm::vec3 torsoSize{8.0F * kSkinPixelSize, 12.0F * kSkinPixelSize,
+                              4.0F * kSkinPixelSize};
+    const glm::vec3 limbSize{4.0F * kSkinPixelSize, 12.0F * kSkinPixelSize,
+                             4.0F * kSkinPixelSize};
+    const float shoulderY = 24.0F * kSkinPixelSize;
+    const float shoulderX = 6.0F * kSkinPixelSize;
+    const float hipY = 12.0F * kSkinPixelSize;
+    const float hipX = 2.0F * kSkinPixelSize;
+    std::array<std::vector<glm::mat4>, kSpiderPartCount> partModels;
+    for (auto& models : partModels) models.reserve(group.size());
 
-  for (const ZombieInstance& zombie : zombies) {
-    glm::mat4 actorRoot{1.0F};
-    actorRoot = glm::translate(actorRoot, zombie.position);
-    actorRoot = glm::rotate(actorRoot, zombie.yawRadians,
-                            glm::vec3{0.0F, 1.0F, 0.0F});
-    const glm::mat4 feet = glm::scale(
-        glm::translate(actorRoot, glm::vec3{0.0F, -kPlayerFeetOffset, 0.0F}),
-        glm::vec3(gameplay::kActorScale));
-    const auto makeBoxModel = [&feet](const glm::vec3& center,
-                                      const glm::vec3& size) {
-      return glm::scale(glm::translate(feet, center), size);
-    };
-    const auto makeLimbModel = [&feet](const glm::vec3& joint,
-                                       const glm::vec3& size, float angle) {
-      glm::mat4 model = glm::translate(feet, joint);
-      model = glm::rotate(model, angle, glm::vec3{1.0F, 0.0F, 0.0F});
-      model = glm::translate(model, glm::vec3{0.0F, -size.y * 0.5F, 0.0F});
-      return glm::scale(model, size);
-    };
-
-    const float swing = zombie.moving
-                            ? std::sin(zombie.walkCyclePhase) *
-                                  kWalkSwingAmplitude
-                            : 0.0F;
-    float armRaise = 0.0F;
-    if (zombie.attackAnimationTime >= 0.0F) {
-      const float progress = std::clamp(
-          zombie.attackAnimationTime / kZombieAttackAnimationSeconds, 0.0F,
-          1.0F);
-      const auto smoothStep = [](float value) {
-        value = std::clamp(value, 0.0F, 1.0F);
-        return value * value * (3.0F - 2.0F * value);
+    for (const ZombieInstance& zombie : group) {
+      glm::mat4 actorRoot{1.0F};
+      actorRoot = glm::translate(actorRoot, zombie.position);
+      actorRoot = glm::rotate(actorRoot, zombie.yawRadians,
+                              glm::vec3{0.0F, 1.0F, 0.0F});
+      const auto profile = gameplay::enemyProfile(kind);
+      const auto grounded =
+          glm::translate(actorRoot, glm::vec3(0, 1.F - profile.centreY, 0));
+      const glm::mat4 feet =
+          glm::scale(grounded, spider  ? glm::vec3(1)
+                               : golem ? glm::vec3(.924F, .875F, .924F)
+                                       : glm::vec3(gameplay::kActorScale));
+      const auto makeBoxModel = [&feet](const glm::vec3& center,
+                                        const glm::vec3& size) {
+        return glm::scale(glm::translate(feet, center), size);
       };
-      if (progress < 0.25F)
-        armRaise = smoothStep(progress / 0.25F);
-      else if (progress < 0.52F)
-        armRaise = 1.0F;
-      else
-        armRaise = 1.0F - smoothStep((progress - 0.52F) / 0.48F);
+      const auto makeLimbModel = [&feet](const glm::vec3& joint,
+                                         const glm::vec3& size, float angle) {
+        glm::mat4 model = glm::translate(feet, joint);
+        model = glm::rotate(model, angle, glm::vec3{1.0F, 0.0F, 0.0F});
+        model = glm::translate(model, glm::vec3{0.0F, -size.y * 0.5F, 0.0F});
+        return glm::scale(model, size);
+      };
+
+      const float swing =
+          zombie.moving ? std::sin(zombie.walkCyclePhase) * kWalkSwingAmplitude
+                        : 0.0F;
+      float armRaise = 0.0F;
+      if (zombie.attackAnimationTime >= 0.0F) {
+        const float progress = std::clamp(
+            zombie.attackAnimationTime / kZombieAttackAnimationSeconds, 0.0F,
+            1.0F);
+        const auto smoothStep = [](float value) {
+          value = std::clamp(value, 0.0F, 1.0F);
+          return value * value * (3.0F - 2.0F * value);
+        };
+        if (progress < 0.25F)
+          armRaise = smoothStep(progress / 0.25F);
+        else if (progress < 0.52F)
+          armRaise = 1.0F;
+        else
+          armRaise = 1.0F - smoothStep((progress - 0.52F) / 0.48F);
+      }
+      const float attackArmAngle = (golem ? -.15F : kZombieArmForwardAngle) -
+                                   (golem ? 1.5F : .90F) * armRaise;
+      if (spider) {
+        partModels[0].push_back(makeBoxModel({0, .24F, .16F + .04F * armRaise},
+                                             {.17F, .15F, .17F}));
+        partModels[1].push_back(
+            makeBoxModel({0, .25F, -.025F}, {.24F, .22F, .30F}));
+        for (int side : {-1, 1})
+          for (int leg = 0; leg < 4; ++leg) {
+            const float gait =
+                zombie.moving
+                    ? std::sin(zombie.walkCyclePhase + (leg % 2) * 3.14159F +
+                               (side > 0 ? 3.14159F : 0)) *
+                          .3F
+                    : 0;
+            auto model = glm::translate(
+                feet, glm::vec3(side * .095F, .20F, -.14F + leg * .085F));
+            model =
+                glm::rotate(model, side * (.30F + (leg - 1.5F) * .15F) + gait,
+                            glm::vec3(0, 1, 0));
+            model = glm::rotate(model, side * .65F, glm::vec3(0, 0, 1));
+            model = glm::translate(model, glm::vec3(side * .075F, -.035F, 0));
+            model = glm::scale(model, glm::vec3(.17F, .05F, .045F));
+            partModels[2 + (side > 0 ? 4 : 0) + leg].push_back(model);
+          }
+        continue;
+      }
+
+      partModels[0].push_back(makeBoxModel({0.0F, 28.0F * kSkinPixelSize, 0.0F},
+                                           golem ? headSize * .82F : headSize));
+      partModels[1].push_back(makeBoxModel(
+          {0.0F, 18.0F * kSkinPixelSize, 0.0F},
+          golem ? torsoSize * glm::vec3(1.2F, 1.1F, 1.1F) : torsoSize));
+      // Both arms stay extended in front in the classic zombie pose.
+      partModels[2].push_back(makeLimbModel({-shoulderX, shoulderY, 0.0F},
+                                            limbSize, attackArmAngle));
+      partModels[3].push_back(makeLimbModel({shoulderX, shoulderY, 0.0F},
+                                            limbSize, attackArmAngle));
+      partModels[4].push_back(
+          makeLimbModel({-hipX, hipY, 0.0F}, limbSize, swing));
+      partModels[5].push_back(
+          makeLimbModel({hipX, hipY, 0.0F}, limbSize, -swing));
     }
-    const float attackArmAngle = kZombieArmForwardAngle - 0.90F * armRaise;
 
-    partModels[0].push_back(
-        makeBoxModel({0.0F, 28.0F * kSkinPixelSize, 0.0F}, headSize));
-    partModels[1].push_back(
-        makeBoxModel({0.0F, 18.0F * kSkinPixelSize, 0.0F}, torsoSize));
-    // Both arms stay extended in front in the classic zombie pose.
-    partModels[2].push_back(makeLimbModel(
-        {-shoulderX, shoulderY, 0.0F}, limbSize, attackArmAngle));
-    partModels[3].push_back(makeLimbModel(
-        {shoulderX, shoulderY, 0.0F}, limbSize, attackArmAngle));
-    partModels[4].push_back(
-        makeLimbModel({-hipX, hipY, 0.0F}, limbSize, swing));
-    partModels[5].push_back(
-        makeLimbModel({hipX, hipY, 0.0F}, limbSize, -swing));
-  }
+    std::vector<glm::mat4> instanceModels;
+    instanceModels.reserve(group.size() * enemyPartCount(kind));
+    for (const auto& models : partModels)
+      instanceModels.insert(instanceModels.end(), models.begin(), models.end());
 
-  std::vector<glm::mat4> instanceModels;
-  instanceModels.reserve(zombies.size() * kZombiePartCount);
-  for (const auto& models : partModels)
-    instanceModels.insert(instanceModels.end(), models.begin(), models.end());
+    shader.use();
+    shader.setMat4("uViewProjection", viewProjection);
+    shader.setInt("uInstanced", 1);
+    const auto* skin = spider  ? &spiderTexture_
+                       : golem ? &golemTexture_
+                               : &zombieTexture_;
+    shader.setVec3("uTint", *skin    ? glm::vec3(1)
+                            : spider ? glm::vec3(.3F, .12F, .36F)
+                            : golem  ? glm::vec3(.55F, .5F, .43F)
+                                     : glm::vec3(.24F, .78F, .32F));
+    shader.setInt("uTexture", 0);
+    shader.setInt("uUseTexture", *skin ? 1 : 0);
+    shader.setInt("uMaterialType", 0);
+    shader.setMat4("uModel", glm::mat4(1));
+    if (*skin) (*skin)->bind();
 
-  shader.use();
-  shader.setMat4("uViewProjection", viewProjection);
-  shader.setInt("uInstanced", 1);
-  shader.setVec3("uTint", zombieTexture_ ? glm::vec3{1.0F}
-                                          : glm::vec3{0.24F, 0.78F, 0.32F});
-  shader.setInt("uTexture", 0);
-  shader.setInt("uUseTexture", zombieTexture_ ? 1 : 0);
-  shader.setInt("uMaterialType", 0);
-  shader.setMat4("uModel", glm::mat4{1.0F});
-  if (zombieTexture_) zombieTexture_->bind();
-
-  glBindVertexArray(zombieVertexArray_);
-  glBindBuffer(GL_ARRAY_BUFFER, zombieInstanceBuffer_);
-  glBufferData(GL_ARRAY_BUFFER,
-               static_cast<GLsizeiptr>(instanceModels.size() *
-                                       sizeof(glm::mat4)),
-               instanceModels.data(), GL_STREAM_DRAW);
-  for (std::size_t part = 0; part < partModels.size(); ++part) {
-    const std::size_t partOffset =
-        part * zombies.size() * sizeof(glm::mat4);
-    for (int column = 0; column < 4; ++column) {
-      const GLuint location = static_cast<GLuint>(3 + column);
-      const std::size_t offset =
-          partOffset + static_cast<std::size_t>(column) * sizeof(glm::vec4);
-      glVertexAttribPointer(
-          location, 4, GL_FLOAT, GL_FALSE,
-          static_cast<GLsizei>(sizeof(glm::mat4)),
-          reinterpret_cast<const void*>(static_cast<std::uintptr_t>(offset)));
+    glBindVertexArray(zombieVertexArray_);
+    glBindBuffer(GL_ARRAY_BUFFER, zombieInstanceBuffer_);
+    glBufferData(
+        GL_ARRAY_BUFFER,
+        static_cast<GLsizeiptr>(instanceModels.size() * sizeof(glm::mat4)),
+        instanceModels.data(), GL_STREAM_DRAW);
+    for (std::size_t part = 0; part < partModels.size(); ++part) {
+      if (partModels[part].empty()) continue;
+      const std::size_t partOffset = part * group.size() * sizeof(glm::mat4);
+      for (int column = 0; column < 4; ++column) {
+        const GLuint location = static_cast<GLuint>(3 + column);
+        const std::size_t offset =
+            partOffset + static_cast<std::size_t>(column) * sizeof(glm::vec4);
+        glVertexAttribPointer(
+            location, 4, GL_FLOAT, GL_FALSE,
+            static_cast<GLsizei>(sizeof(glm::mat4)),
+            reinterpret_cast<const void*>(static_cast<std::uintptr_t>(offset)));
+      }
+      const PlayerPartRange& range =
+          zombiePartRanges_[part < kZombiePartCount ? part : 2];
+      glDrawArraysInstanced(GL_TRIANGLES, range.firstVertex, range.vertexCount,
+                            static_cast<GLsizei>(group.size()));
     }
-    const PlayerPartRange& range = zombiePartRanges_[part];
-    glDrawArraysInstanced(GL_TRIANGLES, range.firstVertex, range.vertexCount,
-                          static_cast<GLsizei>(zombies.size()));
+    glBindVertexArray(0);
+    glBindBuffer(GL_ARRAY_BUFFER, 0);
   }
-  glBindVertexArray(0);
-  glBindBuffer(GL_ARRAY_BUFFER, 0);
 }
 
 void ArenaRenderer::drawProxy(const Shader& shader, const glm::mat4& vp,

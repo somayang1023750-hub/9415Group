@@ -78,6 +78,11 @@ bool drawGameplayUi(gameplay::Gameplay& game) {
               s.kills);
   ImGui::Text("Level %d | EXP %d / %d", s.level, s.experience,
               game.experienceToNextLevel());
+  int enemyCounts[3] = {};
+  for (const auto& enemy : game.enemies())
+    ++enemyCounts[static_cast<int>(enemy.kind)];
+  ImGui::Text("Enemies: Zombie %d | Golem %d | Spider %d", enemyCounts[0],
+              enemyCounts[1], enemyCounts[2]);
   ImGui::TextUnformatted("Arsenal:");
   ImGui::SameLine();
   for (std::size_t i = 0; i < game.weapons().size(); ++i) {

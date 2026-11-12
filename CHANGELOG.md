@@ -4,6 +4,19 @@ This file records the changes made to the starter code and explain why the issue
 
 
 
+## 2026-11-12 — Member A: mixed Zombie/Golem/Spider encounters
+
+- Added exact typed HP/damage/EXP, distinct body extents/speeds and original
+  procedural Golem/Spider skins with biped/eight-leg hierarchical animation.
+- Added smooth Day/Night generation weights and preserved the team batch/cap
+  rules. Reset and level switching restart the selected map's encounter curve.
+- Added body-aware swept collision and crowd-aware routing with persistent
+  waypoints, front-first movement and wall-adjacent melee approach.
+- Retained C's instancing by grouping models per type/part; updated diagnostics.
+- Full app build and 12 new enemy tests passed. Full CPU suite retains the six
+  known baseline failures (28/34 passed); see [enemy validation](docs/member-a-monsters.md).
+- Weapon hit effects and the separate weapon/test redesign are unchanged.
+
 ## 2026-11-11 — Member B, M2 environments and M3 normal mapping
 
 - Connected the seeded Day map and staggered Night barricades to the Game menu.

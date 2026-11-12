@@ -6,7 +6,7 @@
 #include <random>
 #include <vector>
 
-#include "core/gameplay/ActorGeometry.h"
+#include "core/gameplay/EnemyTypes.h"
 
 namespace craft::world {
 class ArenaWorld;
@@ -40,8 +40,9 @@ struct WeaponProfile {
 struct Enemy {
   std::uint32_t id;
   glm::vec3 position;
-  int health = 4;
+  float health = 4;
   std::optional<glm::vec3> waypoint;
+  EnemyKind kind = EnemyKind::Zombie;
 };
 struct Bullet {
   glm::vec3 position;
@@ -108,10 +109,14 @@ class Gameplay {
  public:
   explicit Gameplay(std::uint32_t seed = 9415);
   void reset();
+  void reset(world::ArenaLevel level);
+  [[nodiscard]] world::ArenaLevel level() const { return level_; }
+  [[nodiscard]] float elapsedSeconds() const { return elapsedSeconds_; }
   void update(float dt, const glm::vec3& player, const world::ArenaWorld& world,
               std::optional<glm::vec3> shotTarget = std::nullopt);
   bool spawnEnemy(const glm::vec3& position, const glm::vec3& player,
-                  const world::ArenaWorld& world);
+                  const world::ArenaWorld& world,
+                  EnemyKind kind = EnemyKind::Zombie);
   bool chooseUpgrade(std::size_t choice);
   [[nodiscard]] int experienceToNextLevel() const { return stats_.level * 3; }
   [[nodiscard]] const Stats& stats() const { return stats_; }
@@ -154,6 +159,7 @@ class Gameplay {
                    Weapon weapon);
   void explode(const glm::vec3& position, int damage, float blastRadius,
                bool firebomb);
+  world::ArenaLevel level_ = world::ArenaLevel::Day;
   Stats stats_;
   std::vector<Enemy> enemies_;
   std::vector<Explosion> explosions_;
