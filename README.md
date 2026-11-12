@@ -54,7 +54,7 @@ src/app/            ArenaScene, FollowCamera, PlayerController, AppUi, and bench
 src/core/           Asset lookup and CPU-only gameplay/geometry/aim systems
 src/graphics/       ArenaRenderer, window, shader, texture, and text renderer
 src/world/          32 x 32 x 32 block grid and collision queries
-tests/              Optional Catch2/CTest suite (46 current cases)
+tests/              Optional Catch2/CTest suite (48 current cases)
 ```
 
 Implementation files under the existing source directories are automatically
@@ -125,7 +125,7 @@ and EXP 1. Player speed is 5. Day Golems ramp in after 60 seconds to a 70:30
 Zombie/Golem mix at 120 seconds. Night Golems ramp after 30 seconds and Spiders
 after 60, reaching 60:15:25 at 120 seconds. These are generation weights, not
 live population quotas. See [mixed enemy encounters](docs/member-a-monsters.md).
-Automatic encounters keep an eight-block safety clearance between the player's
+Automatic encounters keep a six-block safety clearance between the player's
 and enemy's body edges. Unsafe entries stay rejected on every type/entry retry;
 when none is safe, that spawn slot is skipped. Each two-second spawn batch grows by one
 enemy every 30 seconds, subject to the 24-enemy cap. HP reaching zero or surviving 180 simulation
@@ -136,6 +136,9 @@ on the current map. Selecting Day or Night starts a fresh run on that map.
 Golem EXP drops are about 1.8 times the width of ordinary drops, still granting
 2 EXP. Continuous route checks and safe current-cell re-centring prevent the
 reproduced corner-grazing stall without teleporting enemies through cover.
+Temporary crowd blockage preserves the chosen turn and waits before replanning.
+Open-world detours advance or sidestep rather than repeatedly retreating; cell
+re-centring is reserved for static wall corners. Narrow lanes still queue.
 
 Weapon impacts now emit short Bullet debris, cyan Laser electricity (red after
 evolution) and outward Bomb bursts. Evolved Bombs use the original four-spark
@@ -155,7 +158,7 @@ proximity-damage attack for presentation consumers and clears it on the next
 simulation update.
 Interface comments and [A's handoff](docs/member-a-progress.md)
 describe coordinate conventions and integration boundaries. Weapon styles use
-particles rather than separate weapon models. All 46 current tests pass; the
+particles rather than separate weapon models. All 48 current tests pass; the
 [validation guide](docs/member-a-validation.md) explains the six obsolete test
 cases refreshed in this follow-up.
 

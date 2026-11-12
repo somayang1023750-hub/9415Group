@@ -4,6 +4,19 @@ This file records the changes made to the starter code and explain why the issue
 
 
 
+## 2026-11-12 — Member A: six-block spawn safety and stable crowd pursuit
+
+- Reduced automatic spawn exclusion from eight to six blocks of body-edge
+  clearance; all type/entry fallbacks still enforce the zone.
+- Separated temporary actor congestion from static-corner recovery. Grid turns
+  remain committed; blocked followers wait before a timed replan. Open-world
+  crowd detours cannot begin by retreating, and only static corner disconnection
+  permits cell-centre recovery. Direct chase still follows a moving player.
+- Added side-by-side crowd and waiting/resuming queue regressions. Both fail
+  against the previous navigation code and pass now; corner-recovery tests pass.
+- Full application build and all 48 tests pass. Particle implementation remains
+  the accepted `5af6183` version; progress and manual replay docs are updated.
+
 ## 2026-11-12 — Member A: restore the pre-edit firebomb appearance
 
 - Restored the evolved Bomb flight-trail block verbatim from `e32b7cf`: original

@@ -367,14 +367,21 @@ void Gameplay::update(float dt, const glm::vec3& player,
       return length > stop ? goal : from;
     };
     const auto previousPosition = e.position;
-    if (e.waypoint && (!worldClear(e.position, *e.waypoint) ||
-                       !actorRouteClear(e.position, *e.waypoint)))
-      e.waypoint.reset();
     const auto direct = approach(e.position);
-    if (worldClear(e.position, direct) && actorRouteClear(e.position, direct))
-      e.waypoint = direct;
-    if (e.waypoint && distance(e.position, *e.waypoint) < .02F)
+    const bool directWorldClear = worldClear(e.position, direct);
+    // A transient neighbour must not invalidate a whole route each frame.
+    // Commit to grid turns/recovery until reached; direct goals follow the
+    // live player. Actual movement still checks every actor at every substep.
+    if (e.waypoint && (!worldClear(e.position, *e.waypoint) ||
+                       distance(e.position, *e.waypoint) < .02F ||
+                       (e.directWaypoint && !directWorldClear)))
       e.waypoint.reset();
+    if (directWorldClear &&
+        ((e.waypoint && e.directWaypoint) ||
+         (!e.waypoint && actorRouteClear(e.position, direct)))) {
+      e.waypoint = direct;
+      e.directWaypoint = true;
+    }
     if (!e.waypoint) {
       const int x = static_cast<int>(std::floor(e.position.x)),
                 z = static_cast<int>(std::floor(e.position.z));
@@ -411,6 +418,11 @@ void Gameplay::update(float dt, const glm::vec3& player,
           if (nx < 0 || nx >= width || nz < 0 || nz >= depth) continue;
           const int next = nz * width + nx;
           const glm::vec3 point(nx + .5F, profile.centreY, nz + .5F);
+          // In open sight a crowd can cause waiting/sideways routing, never a
+          // retreat/re-advance loop. Wall detours may still require going back.
+          if (cell == start && directWorldClear &&
+              glm::dot(point - e.position, direct - e.position) < -.0001F)
+            continue;
           if (parent[next] >= 0 ||
               !world.canOccupy(point, profile.halfExtents) ||
               !actorClear(point) || !actorRouteClear(centre, point))
@@ -421,13 +433,15 @@ void Gameplay::update(float dt, const glm::vec3& player,
         }
       }
       if (destination < 0 && fallback != start) destination = fallback;
-      if (destination == start)
+      if (destination == start) {
         e.waypoint = approach(e.position);
-      else if (destination >= 0) {
+        e.directWaypoint = true;
+      } else if (destination >= 0) {
         int next = destination;
         while (parent[next] != start) next = parent[next];
         e.waypoint =
             glm::vec3(next % width + .5F, profile.centreY, next / width + .5F);
+        e.directWaypoint = false;
       }
     }
     // An off-centre body beside a corner may not connect directly to any
@@ -435,9 +449,20 @@ void Gameplay::update(float dt, const glm::vec3& player,
     const auto anchor =
         glm::vec3(std::floor(e.position.x) + .5F, profile.centreY,
                   std::floor(e.position.z) + .5F);
+    const auto needsWallReconnect = [&] {
+      if (directWorldClear) return false;
+      for (const auto& step :
+           std::array<glm::vec3, 4>{glm::vec3(1, 0, 0), glm::vec3(-1, 0, 0),
+                                    glm::vec3(0, 0, 1), glm::vec3(0, 0, -1)})
+        if (worldClear(e.position, anchor + step)) return false;
+      return true;
+    };
     if (!e.waypoint && distance(e.position, anchor) > .02F &&
-        worldClear(e.position, anchor) && actorRouteClear(e.position, anchor))
+        needsWallReconnect() && worldClear(e.position, anchor) &&
+        actorRouteClear(e.position, anchor)) {
       e.waypoint = anchor;
+      e.directWaypoint = false;
+    }
     if (e.waypoint) {
       auto delta = *e.waypoint - e.position;
       delta.y = 0;
@@ -454,13 +479,15 @@ void Gameplay::update(float dt, const glm::vec3& player,
         const auto step = delta / length * (travel / count);
         for (int i = 0; i < count; ++i) {
           const auto next = e.position + step;
-          if (!world.canOccupy(next, profile.halfExtents) ||
-              !actorClear(next) ||
-              overlaps(next, profile.halfExtents, player,
-                       playerHalfExtents())) {
+          if (!world.canOccupy(next, profile.halfExtents)) {
             e.waypoint.reset();
             break;
           }
+          // Another body can move away. Wait on the committed route before
+          // the timed replan; do not bounce back to a cell centre each frame.
+          if (!actorClear(next) ||
+              overlaps(next, profile.halfExtents, player, playerHalfExtents()))
+            break;
           e.position = next;
         }
       }
@@ -470,10 +497,12 @@ void Gameplay::update(float dt, const glm::vec3& player,
       e.blockedSeconds += dt;
       if (e.blockedSeconds > .35F) {
         e.waypoint.reset();
-        if (distance(e.position, anchor) > .02F &&
+        if (distance(e.position, anchor) > .02F && needsWallReconnect() &&
             worldClear(e.position, anchor) &&
-            actorRouteClear(e.position, anchor))
+            actorRouteClear(e.position, anchor)) {
           e.waypoint = anchor;
+          e.directWaypoint = false;
+        }
         e.blockedSeconds = 0;
       }
     } else

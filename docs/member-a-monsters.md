@@ -52,7 +52,7 @@ it, another currently eligible kind can fill the slot. No ineligible type is
 introduced as a fallback. Blocked entries can therefore affect the realised mix.
 
 Retained team rules: attempt a batch every 2 seconds, add one to batch size every
-30 seconds, and cap at 24 live enemies. Automatic encounters now require **eight
+30 seconds, and cap at 24 live enemies. Automatic encounters now require **six
 blocks of horizontal clearance between player/enemy body edges**, using the live
 player position and selected type's footprint. This replaces the old automatic
 four-block centre-distance rule. Every entry/type fallback repeats the safety
@@ -69,12 +69,18 @@ and near map edges; it is a distance guarantee, not off-screen spawning.
 - Persistent grid waypoints avoid the old turn-centre oscillation. BFS checks
   both tile occupancy and swept routes between tiles against other bodies.
   Stable per-ID direction order spreads equivalent routes around obstacles.
+- A grid turn remains committed until reached or blocked by the world. Temporary
+  actor blockage waits on the route before the 0.35-second timed replan; another
+  monster entering the route does not clear it every frame. Direct goals still
+  follow the live player. Where the player is reachable in open world geometry,
+  crowd detours may advance or sidestep, but their first step cannot retreat.
 - Voxel route checks now use continuous segment/slab tests against expanded
   blocks, with the same edge tolerance as occupancy. The old 0.1-block sampling
   could miss a tiny corner clip, repeatedly choosing a route that movement
-  rejected. Stale waypoints are validated before movement. Off-centre actors can
-  connect through their current free cell centre; a 0.35-second no-progress
-  check clears the waypoint and retries a safe route. Recovery never teleports
+  rejected. World-invalid waypoints are validated before movement. Off-centre
+  actors reconnect through their free cell centre only when a static corner
+  prevents connection to all neighbouring grid centres. Nearby actors alone
+  cannot trigger this re-centring. Recovery never teleports
   an actor or permits wall/actor penetration.
 - Direct approach targets stop outside the combined player/enemy footprint.
   Large Golems can approach a player near a wall without requiring the Golem to
@@ -92,7 +98,7 @@ and near map edges; it is a distance guarantee, not off-screen spawning.
 `Enemy.kind` selects `enemyProfile(kind)`. `spawnEnemy(..., kind)` defaults to
 Zombie for existing callers. That explicit API also permits staging any model
 for tests and retains its original four-block minimum. Autonomous spawning is
-the production path; it additionally enforces `spawnSafetyRadius()` (8), typed
+the production path; it additionally enforces `spawnSafetyRadius()` (6), typed
 body-edge clearance and level/time restrictions before invoking the staging hook.
 
 Enemy centres differ: Zombie Y=1.32, Golem Y=1.442, Spider Y=1.212. All bases sit
@@ -116,14 +122,19 @@ adds colour at attribute 8 without changing these model attributes.
 ## Validation and remaining limits
 
 - Full application CMake Release build passed on Linux/GCC 14.2.
-- **15 enemy test cases passed**, covering exact ratios, time curves,
+- **17 enemy test cases passed**, covering exact ratios, time curves,
   weighted generation, typed clearance, damage/invulnerability, fractional HP,
   rewards, mixed crowd routing, wall-adjacent approach, pause/reset, both real
   maps' entry compatibility, the cap, water slowdown and corner-grazing recovery
   across all three body types, automatic body-edge safety, near-entry rejection,
   no-safe-entry skipping and live-player safety after moving onto an old entry.
   Every navigation movement step checks clearance and speed.
-- Current suite: **46 cases passed**. The earlier monster-only delivery recorded
+- Two crowd regressions cover 36 side-by-side type/target configurations and a
+  narrow-lane follower that waits steadily, then resumes when the player moves.
+  Both fail against the previous navigation code: one records eight repeated
+  reversals; the other moves a full 0.09 blocks while it should be waiting.
+  Both pass now, with per-step clearance, speed and no-overlap checks retained.
+- Current suite: **48 cases passed**. The earlier monster-only delivery recorded
   28/34 passing: six tests still asserted obsolete weapon, speed and camera rules.
   The follow-up refreshes those expectations and adds real weapon-unlock,
   independent-cooldown, progression/evolution and particle coverage. Tests are

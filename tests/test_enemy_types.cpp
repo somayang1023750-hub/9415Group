@@ -111,7 +111,7 @@ TEST_CASE("Autonomous mixed batches follow level weights and respect live cap",
     }
   }
 }
-TEST_CASE("Automatic encounters keep an eight-block body safety zone",
+TEST_CASE("Automatic encounters keep a six-block body safety zone",
           "[enemies][spawn]") {
   const auto idleWorld = emptyArena();
   for (auto level : {ArenaLevel::Day, ArenaLevel::Night})
@@ -122,11 +122,12 @@ TEST_CASE("Automatic encounters keep an eight-block body safety zone",
         for (int i = 0; i < static_cast<int>(elapsed * 10); ++i)
           game.update(.1F, player, idleWorld);
         craft::world::ArenaLayout layout;
-        // Even the 8.2-centre-distance entry clips the body safety zone.
+        // Even the 6.2-centre-distance entry clips the body safety zone.
         layout.enemySpawnCandidates = {player, player + glm::vec3(4.5F, 0, 0),
-                                       player + glm::vec3(8.2F, 0, 0)};
+                                       player + glm::vec3(6.2F, 0, 0)};
         if (allowFarEntry)
-          layout.enemySpawnCandidates.push_back({3.5F, 1.45F, 3.5F});
+          // This safe entry would be rejected by the old eight-block zone.
+          layout.enemySpawnCandidates.push_back(player + glm::vec3(7.F, 0, 0));
         for (auto& entry : layout.enemySpawnCandidates) entry.y = 1.45F;
         const ArenaWorld world(layout);
         for (int i = 0; i < 210 && game.enemies().empty(); ++i)
@@ -387,4 +388,88 @@ TEST_CASE(
         INFO("kind=" << int(kind) << " edge=" << edge << " z=" << z);
         REQUIRE(glm::length(game.enemies()[0].position - target) < 1.4F);
       }
+}
+
+TEST_CASE("Side-by-side crowds progress without repeated direction reversals",
+          "[enemies][navigation]") {
+  const auto world = emptyArena();
+  const glm::vec3 staging(3, kActorCentreY, 3);
+  for (auto middle : {EnemyKind::Zombie, EnemyKind::Golem, EnemyKind::Spider})
+    for (auto sides : {EnemyKind::Zombie, EnemyKind::Golem, EnemyKind::Spider})
+      for (float lead : {-.25F, .25F})
+        for (float targetX : {14.5F, 18.5F}) {
+          INFO("middle=" << int(middle) << " sides=" << int(sides)
+                         << " lead=" << lead << " targetX=" << targetX);
+          Gameplay game;
+          const auto m = enemyProfile(middle), s = enemyProfile(sides);
+          REQUIRE(game.spawnEnemy({16.45F, m.centreY, 22.23F}, staging, world,
+                                  middle));
+          for (float sign : {-1.F, 1.F})
+            REQUIRE(game.spawnEnemy(
+                {16.45F + sign * (m.halfExtents.x + s.halfExtents.x + .025F),
+                 s.centreY, 22.23F + lead},
+                staging, world, sides));
+          const auto initial = game.enemies();
+          std::array<glm::vec3, 3> previousMove{};
+          std::array<int, 3> reversals{};
+          const glm::vec3 target(targetX, kActorCentreY, 4.5F);
+          for (int frame = 0; frame < 350; ++frame) {
+            const auto before = game.enemies();
+            game.update(.02F, target, world);
+            for (std::size_t i = 0; i < game.enemies().size(); ++i) {
+              const auto& e = game.enemies()[i];
+              const auto p = enemyProfile(e.kind);
+              const auto delta = e.position - before[i].position;
+              REQUIRE(world.canOccupy(e.position, p.halfExtents));
+              REQUIRE(glm::length(delta) <= p.speed * .02F + .001F);
+              for (const auto& other : game.enemies())
+                if (e.id != other.id) REQUIRE_FALSE(overlap(e, other));
+              if (glm::length(delta) > .0001F) {
+                if (glm::length(previousMove[i]) > .0001F &&
+                    glm::dot(glm::normalize(delta),
+                             glm::normalize(previousMove[i])) < -.7F)
+                  ++reversals[i];
+                previousMove[i] = delta;
+              }
+            }
+          }
+          for (std::size_t i = 0; i < initial.size(); ++i) {
+            INFO("enemy=" << i << " reversals=" << reversals[i]);
+            REQUIRE(reversals[i] <= 2);
+            REQUIRE(glm::length(game.enemies()[i].position -
+                                initial[i].position) > 5);
+          }
+        }
+}
+
+TEST_CASE("A blocked follower waits steadily and resumes after the queue moves",
+          "[enemies][navigation]") {
+  craft::world::ArenaLayout layout;
+  layout.playerSpawn = {16.5F, 1.45F, 12.5F};
+  layout.obstacles = {{15, 10, 1, 13, 2}, {17, 10, 1, 13, 2}};
+  const ArenaWorld world(layout);
+  Gameplay game;
+  const glm::vec3 staging(3, kActorCentreY, 3),
+      waitingPlayer(16.5F, kActorCentreY, 12.5F);
+  REQUIRE(
+      game.spawnEnemy({16.5F, 1.45F, 14.5F}, staging, world, EnemyKind::Golem));
+  REQUIRE(game.spawnEnemy({16.5F, 1.45F, 15.3F}, staging, world,
+                          EnemyKind::Spider));
+  for (int frame = 0; frame < 100; ++frame) {
+    const auto previous = game.enemies()[1].position;
+    game.update(.02F, waitingPlayer, world);
+    if (frame >= 85)
+      REQUIRE(glm::length(game.enemies()[1].position - previous) < .001F);
+    REQUIRE_FALSE(overlap(game.enemies()[0], game.enemies()[1]));
+  }
+  const auto stopped = game.enemies();
+  const glm::vec3 movedPlayer(16.5F, kActorCentreY, 4.5F);
+  for (int frame = 0; frame < 150; ++frame) {
+    game.update(.02F, movedPlayer, world);
+    for (const auto& e : game.enemies())
+      REQUIRE(world.canOccupy(e.position, enemyProfile(e.kind).halfExtents));
+    REQUIRE_FALSE(overlap(game.enemies()[0], game.enemies()[1]));
+  }
+  for (std::size_t i = 0; i < stopped.size(); ++i)
+    REQUIRE(stopped[i].position.z - game.enemies()[i].position.z > 3);
 }

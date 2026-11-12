@@ -24,11 +24,17 @@ teammate weapon progression, individual cooldowns, layouts, instancing and BRDF/
 normal-map interfaces. Exact details live in [mixed enemy encounters](member-a-monsters.md)
 and [weapon effects](member-a-effects.md).
 
-The latest playtest revisions add an eight-block body-edge safety zone to every
+The latest playtest revisions use a six-block body-edge safety zone for every
 automatic spawn attempt and restore the pre-effects firebomb trail verbatim from
 `e32b7cf`. The original ten ground-fire cubes retain their appearance and rise,
 with only angular motion sped up to form a vortex. The accepted radial explosion
 burst is retained.
+
+The crowd follow-up separates temporary body congestion from static-corner
+recovery. Grid turns remain committed; blocked followers wait before replanning,
+and open-world crowd routing cannot start with a retreat. Both new crowd
+regressions fail on the old code and pass with this change. Accepted particles
+retain the `5af6183` implementation.
 
 ## Gameplay delivered by A
 
@@ -40,7 +46,7 @@ burst is retained.
   ImGui input capture suppresses gameplay input.
 - Swept projectile collision prevents tunnelling. Wall contacts win collision
   ties. Each projectile keeps its launch-time damage, speed, weapon and evolution.
-- Typed spawning uses B's live candidates, an eight-block body-edge safety zone,
+- Typed spawning uses B's live candidates, a six-block body-edge safety zone,
   body-specific clearance, a 24-live-enemy cap and two-second spawn batches.
   Batch size gains one every 30 active seconds.
   Unsafe candidates remain rejected during type/entry fallback; a batch is
@@ -49,7 +55,9 @@ burst is retained.
 - Enemy chase uses persistent four-neighbour grid waypoints, continuous swept
   world clearance, live actor separation and front-first movement. Current-cell
   connection and no-progress recovery handle off-centre corner grazing. Narrow
-  passages may queue; recovery does not teleport actors through obstacles.
+  passages queue steadily; actor blockage does not trigger per-frame re-centring.
+  Grid turns stay committed, while direct chase follows the moving player.
+  Recovery does not teleport actors through obstacles.
 - Kills drop typed EXP cubes; attraction starts within four blocks at seven
   blocks/second, pickup occurs within 0.65 blocks and intentionally ignores cover.
   Golem drops are visibly larger and grant 2 EXP; other drops grant 1.
@@ -136,7 +144,7 @@ screen, textured player, WASD, ImGui lifecycle and benchmark also predate A.
 
 ## Verification and remaining acceptance
 
-Current Linux C++17 Release application build and all **46 regression cases**
+Current Linux C++17 Release application build and all **48 regression cases**
 pass. Coverage includes three typed bodies, encounter ramps, corner recovery,
 automatic spawn safety, real unlocks and independent cooldowns, all weapon upgrades/evolutions, particles,
 lights, reset and pause. Six earlier failures came from tests retaining obsolete

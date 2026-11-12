@@ -44,6 +44,8 @@ struct Enemy {
   std::optional<glm::vec3> waypoint;
   EnemyKind kind = EnemyKind::Zombie;
   float blockedSeconds = 0;
+  // A: keep grid turns until reached; direct goals still follow a moving player.
+  bool directWaypoint = false;
 };
 struct Bullet {
   glm::vec3 position;
@@ -126,7 +128,7 @@ class Gameplay {
   [[nodiscard]] float elapsedSeconds() const { return elapsedSeconds_; }
   // B: automatic encounters require this much X/Z clearance between the
   // player and the selected enemy's body, including fallback spawn attempts.
-  static constexpr float spawnSafetyRadius() { return 8.F; }
+  static constexpr float spawnSafetyRadius() { return 6.F; }
   void update(float dt, const glm::vec3& player, const world::ArenaWorld& world,
               std::optional<glm::vec3> shotTarget = std::nullopt);
   // Explicit staging hook retains its four-block minimum for existing callers.

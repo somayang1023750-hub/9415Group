@@ -7,8 +7,9 @@ Updated: 2026-11-12 (Australia/Sydney). Current follow-up builds on `e32b7cf`.
 | Check | Recorded outcome | Limit |
 | --- | --- | --- |
 | Full C++17 application build | Passed, Linux Release / GCC 14.2 | Not a Windows or CSE result |
-| Current regression suite | 46 cases passed: 17 gameplay, 15 enemy, eight particle, five world, one math | CPU checks do not replace visual/balance acceptance |
-| Automatic spawn safety | Eight-block body-edge exclusion tested in Day/Night, including unsafe fallbacks, no safe entries and moving onto an old entry | Explicit fixture staging retains the old four-block minimum |
+| Current regression suite | 48 cases passed: 17 gameplay, 17 enemy, eight particle, five world, one math | CPU checks do not replace visual/balance acceptance |
+| Automatic spawn safety | Six-block body-edge exclusion tested in Day/Night, including unsafe fallbacks, no safe entries, moving onto an old entry and accepting a position inside the former eight-block zone | Explicit fixture staging retains the old four-block minimum |
+| Crowd stability | 36 side-by-side configurations plus stationary/following queue passed; both new cases fail with the previous navigation implementation | Occasional legitimate turns and physical queues remain expected |
 | Corner-grazing regression | All three kinds and multiple edge offsets reach the target; every step checks clearance and speed | Crowded lanes may still queue physically |
 | Weapon integration | Real unlocks, independent cooldowns, four upgrades and evolution per weapon passed | Current team rules retained |
 | Particle/light integration | Production OpenGL shaders render impacts, fire trails and rotating ground fire in Day/Night without GL errors; real impacts, pause/reset and blend/depth-write restoration passed | Temporary Xvfb/Mesa harness, not Windows hardware |
@@ -100,9 +101,9 @@ that every row was independently executed on every platform.
 | Start | Launch normally, press Enter | Title fades into gameplay |
 | Movement | Walk diagonally, along cover and around a corner | Normalized speed; walls and actors block passage |
 | Camera | Walk across the arena and towards its edge | Player stays centred, local zoom stays fixed, distant areas are off screen |
-| Enemy chase | Kite all three kinds around cover, narrow gaps and corners | Typed speeds/bounds apply; enemies replan without permanent corner stalls or wall penetration; crowded lanes may queue |
+| Enemy chase | Kite all three kinds around cover, narrow gaps and corners; pack enemies side by side, then move away | Typed speeds/bounds apply; crowded followers wait/sidestep without repeated retreat/advance; they resume when space opens; walls and actors still block overlap |
 | Mixed encounters | Play Day beyond 120 s and Night beyond 120 s | Day ramps to 70:30 Zombie:Golem; Night to 60:15:25 Zombie:Golem:Spider; time excludes pauses |
-| Safe spawning | Stand on/near a map entry and cross another entry before the next batch | New enemies appear outside the eight-block body-edge safe zone; no unsafe forced spawn when entries are blocked |
+| Safe spawning | Stand on/near a map entry and cross another entry before the next batch | New enemies appear outside the six-block body-edge safe zone; no unsafe forced spawn when entries are blocked |
 | Bullet | Hold the left mouse button toward a fresh red enemy | Fires at its own cooldown; two base hits kill; cover stops the projectile |
 | EXP | Approach a green drop | Attraction starts within four blocks, pickup adds EXP |
 | Upgrade | Reach the threshold, preferably while wounded | Clear English paused modal; up to two random upgrade, evolution or weapon-unlock choices; timer/enemies stop |
