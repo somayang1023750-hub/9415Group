@@ -9,6 +9,7 @@
 #include <glm/ext/matrix_transform.hpp>
 #include <glm/vec2.hpp>
 #include <glm/vec3.hpp>
+#include <string>
 #include <vector>
 
 #include "core/AssetPath.h"

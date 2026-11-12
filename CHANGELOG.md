@@ -4,6 +4,13 @@ This file records the changes made to the starter code and explain why the issue
 
 
 
+## 2026-11-12 — Member A: Windows effect-light build fix
+
+- Included `<string>` explicitly in `ArenaRenderer.cpp` for `std::to_string`.
+  The Night light uniform suffix previously relied on indirect standard-library
+  includes, causing MSVC C2039/C3861 and cascading suffix-initialization errors.
+  The fix retains C++17 and does not change gameplay or rendering behaviour.
+
 ## 2026-11-12 — Member A: corner recovery, impacts and Night effect lights
 
 - Raised Golem health to 14 (3.5x Zombie); retained damage 2, EXP 2, speed and
