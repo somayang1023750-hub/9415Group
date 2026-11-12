@@ -50,8 +50,9 @@ static void capture(int w,int h) {
 }
 
 int main(int argc,char** argv) try {
+  std::cout << "MemberATrainingRange v2 | built " << __DATE__ << " " << __TIME__ << " | " << argv[0] << '\n';
   const bool smoke=argc>1 && std::string(argv[1])=="--smoke";
-  graphics::Window window(1280,720,"Member A - interactive training range");
+  graphics::Window window(1280,720,"MemberATrainingRange v2 - FREE UPGRADES - SPACE TIME STOP");
   graphics::Shader shader(core::assetPath("shaders/basic.vert"),core::assetPath("shaders/basic.frag"));
   app::ArenaScene scene(core::assetPath("textures/player.png"),core::assetPath("textures/zombie.png"),core::assetPath("textures/sand_noise_uv.png"));
   prepare(scene);const auto initial=scene.gameplay().enemies();
@@ -81,7 +82,8 @@ int main(int argc,char** argv) try {
     if(pressed(GLFW_KEY_U)) {owned[selected]=true;if(upgrades[selected]<4)++upgrades[selected];else evolved[selected]=true;apply(selected);}
     if(pressed(GLFW_KEY_E)) {owned[selected]=true;upgrades[selected]=4;evolved[selected]=true;apply(selected);}
     if(controls) {
-      ImGui::Begin("Training range");
+      ImGui::Begin("TRAINING RANGE v2 - FREE UPGRADES / TIME STOP");
+      ImGui::Text("Built: %s %s",__DATE__,__TIME__);
       ImGui::TextUnformatted("WASD move | Mouse aim | Hold left mouse to fire");
       ImGui::TextUnformatted("SPACE: time stop/resume | N: advance 1/60 second");
       ImGui::TextUnformatted("1/2/3: solo weapon | U: upgrade | E: evolve");

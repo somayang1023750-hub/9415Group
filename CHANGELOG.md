@@ -4,6 +4,15 @@ This file records the changes made to the starter code and explain why the issue
 
 
 
+## 2026-11-13 — Member A: unambiguous training-range launcher
+
+- Renamed the executable output to MemberATrainingRange and added a v2 window/
+  panel identity and compile timestamp. The CMake target remains compatible.
+- Updated build_windows.cmd to build in build-training-range and automatically
+  launch CMake's exact configuration-specific output, with source/commit/path
+  diagnostics. Failed builds do not fall back to old executables.
+- Updated capture instructions to remove ambiguous old Debug/root exe choices.
+
 ## 2026-11-12 — Member A: replace staged pages with an interactive range
 
 - Replaced MemberAShowcase's replay/UI pages with a playable ArenaScene range.

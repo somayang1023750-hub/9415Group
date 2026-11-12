@@ -1,18 +1,31 @@
 # Interactive training range (replacement showcase)
 
-The old Figure 1–4 replay pages and canned UI fixtures have been removed from
-MemberAShowcase. This executable is now a playable capture range using the real
+The old Figure 1–4 replay pages and canned UI fixtures are replaced by
+MemberATrainingRange v2, a playable capture range using the real
 ArenaScene, player movement, mouse projection, projectile collision, models,
 weapon profiles and particle rendering. The normal Craft game remains normal.
 
 ## Windows
 
-Pull main, then run `report\member-a\build_windows.cmd` from the Visual Studio
-Developer Command Prompt. Run `build-report\Debug\MemberAShowcase.exe` afterwards
-(or `build-report\MemberAShowcase.exe` with Ninja/single-config builds).
-You can also set `-DCRAFT_BUILD_MEMBER_A_SHOWCASE=ON` in Visual Studio CMake
-settings and select MemberAShowcase as the startup target. The target name and
-build script are retained so an existing build-report folder can be rebuilt.
+Pull main, close any old demo window, then run
+`report\member-a\build_windows.cmd` from the Visual Studio Developer Command
+Prompt. **It builds and launches the new program automatically.** Do not manually
+pick an old MemberAShowcase.exe afterwards.
+
+The script uses a separate `build-training-range` folder, reads CMake's exact
+configuration-specific target path, and displays SOURCE_ROOT, SOURCE_COMMIT,
+LAUNCHING_EXACT_FILE and the executable timestamp. Build/launch failures stop
+without falling back to any existing executable.
+
+The new executable is **MemberATrainingRange.exe**. Its window and panel say
+**TRAINING RANGE v2**, and the panel shows the compilation date/time. It has no
+Figure 1–4 buttons. With Visual Studio, the usual output is
+`build-training-range/Debug/MemberATrainingRange.exe`; Ninja typically uses the
+build-directory root. The script obtains this path from CMake, not a guess.
+
+The CMake build target/option retain their existing names for compatibility:
+`MemberAShowcase` and `CRAFT_BUILD_MEMBER_A_SHOWCASE=ON`. If using Visual Studio's
+own folder build, select that target; its executable name is MemberATrainingRange.
 
 ## Range and controls
 
@@ -45,5 +58,5 @@ The Word and numbered source excerpts remain reference material. Figure 2's
 upgrade/victory/defeat screenshots should now be taken from the normal Craft game;
 the range intentionally has no old UI demonstration pages.
 `py -3 report/member-a/export_code.py` refreshes excerpts after source changes.
-`MemberAShowcase --smoke` exercises real hits, invulnerability, frozen collision
+`MemberATrainingRange --smoke` exercises real hits, invulnerability, frozen collision
 and fire snapshots, resume and PNG capture; it is not a performance benchmark.

@@ -16,3 +16,13 @@ Full Linux C++17 Release builds of Craft and MemberAShowcase passed, with all
 unchanged target position/health, frozen projectile lifetimes/fire ages, resume,
 PNG output and GL error checks. The visible world region also remains identical
 between frozen fire captures (the control checkbox updates on the next UI frame).
+
+## Unambiguous Windows launch (v2)
+
+The executable output is now MemberATrainingRange, while the compatible CMake
+build target remains MemberAShowcase. CMake generates a per-configuration file
+containing the actual target path; the Windows script reads Debug's manifest
+after a successful build and launches that exact path from build-training-range.
+Failures never launch an older fallback. The v2 window/panel and compile stamp
+identify the binary. Manifest resolution and the renamed program are verified
+on Linux; execution of the Windows CMD script itself still needs Windows replay.

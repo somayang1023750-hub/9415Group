@@ -1,6 +1,7 @@
-旧的 Figure 1–4 分页回放展示已移除，MemberAShowcase 现为可操作的训练场。
-编译方法不变：在 VS 开发者命令行运行 report\member-a\build_windows.cmd。
-运行 build-report\Debug\MemberAShowcase.exe（Ninja 为 build-report\MemberAShowcase.exe）。
+旧分页展示已移除，新可执行文件名为 MemberATrainingRange.exe，标题和面板显示 TRAINING RANGE v2。
+拉取 main 并关闭旧展示窗口后，在 VS 开发者命令行运行 report\member-a\build_windows.cmd。
+脚本使用独立 build-training-range 目录，编译成功后自动启动正确的新 exe；不要再手动打开旧 MemberAShowcase.exe。
+脚本会显示源码目录、提交号、实际启动路径和文件时间；新面板还显示编译时间。
 
 WASD 移动，鼠标瞄准，按住左键射击。
 5 个模型固定在障碍物或外墙边，不能被杀死，不会移动或攻击，也不会自动刷怪。

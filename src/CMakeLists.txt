@@ -92,7 +92,12 @@ if(CRAFT_BUILD_MEMBER_A_SHOWCASE)
     ${CRAFT_APP_SOURCES} ${IMGUI_SOURCES})
   target_include_directories(MemberAShowcase PRIVATE ${IMGUI_DIR} ${IMGUI_DIR}/backends)
   target_link_libraries(MemberAShowcase PRIVATE craft_core glfw stb::headers)
-  set_target_properties(MemberAShowcase PROPERTIES RUNTIME_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR})
+  set_target_properties(MemberAShowcase PROPERTIES
+    OUTPUT_NAME MemberATrainingRange
+    RUNTIME_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR})
+  # The launcher reads the actual generator/configuration-specific target path.
+  file(GENERATE OUTPUT "${PROJECT_BINARY_DIR}/member-a-training-$<CONFIG>.txt"
+    CONTENT "$<TARGET_FILE:MemberAShowcase>\n")
   add_custom_command(TARGET MemberAShowcase POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy_directory "${PROJECT_SOURCE_DIR}/assets"
       "$<TARGET_FILE_DIR:MemberAShowcase>/assets")
