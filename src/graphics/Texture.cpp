@@ -10,7 +10,8 @@ namespace craft::graphics {
 
 Texture::Texture(const std::filesystem::path& path,
                  Magnification magnification,
-                 Minification minification) {
+                 Minification minification, Wrapping wrapping,
+                 ColorSpace colorSpace) {
   stbi_set_flip_vertically_on_load(0);
   int channels = 0;
   unsigned char* pixels =
@@ -21,7 +22,10 @@ Texture::Texture(const std::filesystem::path& path,
 
   glGenTextures(1, &texture_);
   glBindTexture(GL_TEXTURE_2D, texture_);
-  glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, width_, height_, 0, GL_RGBA,
+  const GLint internalFormat = colorSpace == ColorSpace::Srgb
+                                   ? GL_SRGB8_ALPHA8
+                                   : GL_RGBA8;
+  glTexImage2D(GL_TEXTURE_2D, 0, internalFormat, width_, height_, 0, GL_RGBA,
                GL_UNSIGNED_BYTE, pixels);
   stbi_image_free(pixels);
 
@@ -34,8 +38,10 @@ Texture::Texture(const std::filesystem::path& path,
   glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER,
                   magnification == Magnification::Nearest ? GL_NEAREST
                                                           : GL_LINEAR);
-  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+  const GLint wrapMode =
+      wrapping == Wrapping::Repeat ? GL_REPEAT : GL_CLAMP_TO_EDGE;
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, wrapMode);
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, wrapMode);
   glBindTexture(GL_TEXTURE_2D, 0);
 }
 

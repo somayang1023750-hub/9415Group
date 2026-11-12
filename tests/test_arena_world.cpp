@@ -6,6 +6,7 @@
 #include <utility>
 
 #include <catch2/catch_test_macros.hpp>
+#include <catch2/generators/catch_generators.hpp>
 
 #include "world/ArenaLayout.h"
 #include "world/ArenaWorld.h"
@@ -38,7 +39,10 @@ TEST_CASE("Arena retains a solid floor and closed low boundary", "[world]") {
 
 TEST_CASE("All walkable cells and entry candidates connect to the player spawn",
           "[world][layout]") {
-  const ArenaWorld world;
+  using craft::world::ArenaLevel;
+  const auto level = GENERATE(ArenaLevel::Day, ArenaLevel::Night);
+  CAPTURE(level == ArenaLevel::Day);
+  const ArenaWorld world(craft::world::makeArenaLayout(level));
   constexpr int width = ArenaWorld::kWidth;
   std::array<bool, width * ArenaWorld::kDepth> visited{};
   std::queue<std::pair<int, int>> pending;
@@ -92,6 +96,24 @@ TEST_CASE("All walkable cells and entry candidates connect to the player spawn",
     const int z = static_cast<int>(std::floor(spawn.z));
     REQUIRE(visited[z * width + x]);
   }
+}
+
+TEST_CASE("Day and Night offer different cover on the playable floor", "[world][layout]") {
+  using craft::world::ArenaLevel;
+  const ArenaWorld day(craft::world::makeArenaLayout(ArenaLevel::Day));
+  const ArenaWorld night(craft::world::makeArenaLayout(ArenaLevel::Night));
+  bool dayOnly = false;
+  bool nightOnly = false;
+  for (int z = 1; z < ArenaWorld::kDepth - 1; ++z) {
+    for (int x = 1; x < ArenaWorld::kWidth - 1; ++x) {
+      const bool dayCover = day.isSolid(x, 1, z);
+      const bool nightCover = night.isSolid(x, 1, z);
+      dayOnly |= dayCover && !nightCover;
+      nightOnly |= nightCover && !dayCover;
+    }
+  }
+  REQUIRE(dayOnly);
+  REQUIRE(nightOnly);
 }
 
 TEST_CASE("Layout data drives cover, spawn metadata and collision", "[world]") {

@@ -18,7 +18,7 @@ struct MovementInput {
 };
 
 // Gameplay-facing movement interface. Input is camera-relative so the same
-// WASD mapping remains intuitive with the near-overhead follow camera.
+// WASD mapping remains intuitive with the angled local follow camera.
 class PlayerController {
  public:
   PlayerController();

@@ -8,8 +8,9 @@
 
 #include "core/gameplay/ActorGeometry.h"
 namespace craft::gameplay {
-// C camera hook: logical window cursor coordinates, actual framebuffer VP.
-// Aim at actor-centre height so the cursor and horizontal bullets agree.
+// Unproject the logical window cursor through the same view-projection matrix
+// used to render the scene, then intersect that ray with the player's height
+// plane. Gameplay fires horizontally from the player toward the returned X/Z.
 inline std::optional<glm::vec3> aimOnPlane(const glm::mat4& vp, double x,
                                            double y, int width, int height,
                                            float planeY = kActorCentreY) {

@@ -60,22 +60,24 @@ that every row was independently executed on every platform.
 | Start | Launch normally, press Enter | Title fades into gameplay |
 | Movement | Walk diagonally, along cover and around a corner | Normalized speed; walls and actors block passage |
 | Camera | Walk across the arena and towards its edge | Player stays centred, local zoom stays fixed, distant areas are off screen |
-| Enemy chase | Wait, move around cover, then change direction | Enemies follow at 4.3 versus player 5 blocks/s; crowded lanes reroute or queue without overlap |
-| Balance | Aim and click at a fresh red enemy | Two hits kill; cover stops the projectile |
+| Enemy chase | Wait 30 seconds, move around cover, then change direction | Enemies follow at 3.3 versus player 5 blocks/s; each spawn batch gains one enemy after each 30 seconds; crowded lanes reroute or queue without overlap |
+| Bullet | Hold the left mouse button toward a fresh red enemy | Fires at its own cooldown; two base hits kill; cover stops the projectile |
 | EXP | Approach a green drop | Attraction starts within four blocks, pickup adds EXP |
-| Upgrade | Reach the threshold, preferably while wounded | Clear English paused modal; two distinct random weapon choices; timer/enemies stop |
-| Resume/heal | Select an offered weapon | HP becomes 5/5, EXP is consumed, level increases and gameplay resumes |
-| Laser | Select Laser when offered; align multiple enemies and shoot near cover | One shot can hit multiple enemies once each, reflects at the first wall, stops at the second; four separate hits kill a fresh enemy |
-| Bomb | Select Bomb; aim at enemies or a nearby wall | Slow shot explodes on impact, orange radius ring appears; enemies within 3.5 blocks take full lethal damage, outside enemies survive |
+| Upgrade | Reach the threshold, preferably while wounded | Clear English paused modal; up to two random upgrade, evolution or weapon-unlock choices; timer/enemies stop |
+| Resume/heal | Select an offered card | HP becomes 5/5, EXP is consumed, level increases and gameplay resumes; unlocked weapons are added to the arsenal |
+| Laser | Unlock Laser; align enemies and shoot near cover | Base laser stops at first enemy and reflects once; evolved red laser pierces until first bounce, then damages and stops on the next enemy |
+| Bomb | Unlock Bomb; aim at enemies or a nearby wall | Base shot deals 2 damage in a 1.75-block radius; at evolution red firebomb leaves sparks and its burning area lasts 3 seconds, dealing 2 damage each second |
 | Defeat | Allow contact damage until HP reaches zero | Centred DEFEAT modal with run statistics and Play again |
 | Victory | Survive 180 simulation seconds | Centred VICTORY modal; upgrade pauses do not consume survival time |
 | Restart | Click Play again or Restart current configuration | HP/time/level/EXP/kills/actors reset, player returns to current-map spawn |
 | Exit | Press Escape | Application closes |
 
-Holding the mouse is not automatic fire. Weapon choices are random, so a desired
-weapon may require another level or another run. Damage stays fixed at every
-level: Balance 2, Laser 1, Bomb 4 against 4-HP enemies. Own bombs cause no player
-damage; their full-radius damage intentionally reaches enemies behind cover.
+Each owned weapon has an independent cooldown, and holding the left mouse button
+fires all ready weapons. Upgrade choices are random, so a desired weapon or
+upgrade may require another level or another run. Base values are Bullet damage
+2/speed 5/interval 0.30 seconds, Laser damage 1/speed 40/interval 0.48 seconds,
+and Bomb damage 2/speed 8/interval 1.20 seconds/radius 1.75. Own bombs cause no
+player damage; their full-radius damage reaches enemies behind cover.
 Day/Night buttons remain disabled until B's layouts and level loading are wired.
 
 ## Benchmark replay

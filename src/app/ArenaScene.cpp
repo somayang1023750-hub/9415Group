@@ -1,69 +1,237 @@
 #include "app/ArenaScene.h"
 
+#include <algorithm>
 #include <cmath>
+#include <vector>
+#include <glm/geometric.hpp>
 #include <stdexcept>
 
+#include "core/gameplay/Aim.h"
 #include "graphics/Shader.h"
 
 namespace craft::app {
 
-ArenaScene::ArenaScene(const std::filesystem::path& playerTexturePath)
-    : renderer_(world_, playerTexturePath) {
+ArenaScene::ArenaScene(const std::filesystem::path& playerTexturePath,
+                       const std::filesystem::path& zombieTexturePath,
+                       const std::filesystem::path& sandTexturePath)
+    : renderer_(world_, playerTexturePath, zombieTexturePath,
+                sandTexturePath) {
   if (!player_.setPosition(world_.playerSpawn(), world_)) {
     throw std::logic_error("Arena spawn cannot accommodate the player");
   }
 }
 
+void ArenaScene::selectLevel(world::ArenaLevel level) {
+  if (level == level_) return;
+  world_ = world::ArenaWorld(world::makeArenaLayout(level));
+  rebuildWorldGeometry();
+  resetGameplay();
+  level_ = level;
+}
+
 void ArenaScene::resetGameplay() {
   gameplay_.reset();
+  enemyRenderStates_.clear();
   if (!player_.setPosition(world_.playerSpawn(), world_))
     throw std::logic_error("Edited map blocks the player spawn");
 }
 
 void ArenaScene::update(const MovementInput& input, float deltaSeconds,
                         std::optional<glm::vec3> shotTarget) {
-  if (gameplay_.stats().phase != gameplay::Phase::Playing) return;
-  const auto previousPosition = player_.position();
-  player_.update(input, deltaSeconds, camera_.horizontalForward(),
-                 camera_.horizontalRight(), world_);
-  // Dynamic actor collision complements B's solid-block collision.
-  for (const auto& enemy : gameplay_.enemies()) {
-    const auto delta = player_.position() - enemy.position;
-    if (std::abs(delta.x) < gameplay::playerEnemySeparation() &&
-        std::abs(delta.z) < gameplay::playerEnemySeparation()) {
-      (void)player_.setPosition(previousPosition, world_);
-      break;
+  updateInternal(input, deltaSeconds, shotTarget, nullptr);
+}
+
+void ArenaScene::updateFromMouse(const MovementInput& input,
+                                float deltaSeconds,
+                                const MouseAimInput& aimInput) {
+  updateInternal(input, deltaSeconds, std::nullopt, &aimInput);
+}
+
+void ArenaScene::updateInternal(const MovementInput& input, float deltaSeconds,
+                                std::optional<glm::vec3> shotTarget,
+                                const MouseAimInput* aimInput) {
+  const bool simulationUpdated =
+      gameplay_.stats().phase == gameplay::Phase::Playing;
+  if (simulationUpdated) {
+    const auto previousPosition = player_.position();
+    player_.update(input, deltaSeconds, camera_.horizontalForward(),
+                   camera_.horizontalRight(), world_);
+    // Dynamic actor collision complements B's solid-block collision.
+    for (const auto& enemy : gameplay_.enemies()) {
+      const auto delta = player_.position() - enemy.position;
+      if (std::abs(delta.x) < gameplay::playerEnemySeparation() &&
+          std::abs(delta.z) < gameplay::playerEnemySeparation()) {
+        (void)player_.setPosition(previousPosition, world_);
+        break;
+      }
+    }
+    if (aimInput && aimInput->framebufferWidth > 0 &&
+        aimInput->framebufferHeight > 0) {
+      const glm::mat4 viewProjection = camera_.viewProjection(
+          player_.position(), aimInput->framebufferWidth,
+          aimInput->framebufferHeight);
+      shotTarget = gameplay::aimOnPlane(
+          viewProjection, aimInput->x, aimInput->y, aimInput->windowWidth,
+          aimInput->windowHeight);
+    }
+    gameplay_.update(deltaSeconds, player_.position(), world_, shotTarget);
+  }
+
+  const auto& enemies = gameplay_.enemies();
+  for (const auto& enemy : enemies) {
+    auto [stateIt, inserted] = enemyRenderStates_.try_emplace(enemy.id);
+    EnemyRenderState& state = stateIt->second;
+    if (inserted) {
+      state.previousPosition = enemy.position;
+      glm::vec3 facing = enemy.waypoint.value_or(player_.position()) -
+                         enemy.position;
+      facing.y = 0.0F;
+      if (glm::length(facing) > 0.0001F)
+        state.yawRadians = std::atan2(facing.x, facing.z);
+      continue;
+    }
+
+    glm::vec3 moved = enemy.position - state.previousPosition;
+    moved.y = 0.0F;
+    state.moving = glm::length(moved) > 0.00001F;
+    if (state.moving) {
+      state.yawRadians = std::atan2(moved.x, moved.z);
+      const int currentCellX =
+          static_cast<int>(std::floor(enemy.position.x));
+      const int currentCellZ =
+          static_cast<int>(std::floor(enemy.position.z));
+      const float terrainSpeed =
+          world_.isWaterSurface(currentCellX, currentCellZ)
+              ? world::ArenaWorld::kWaterMovementSpeedMultiplier
+              : 1.0F;
+      state.walkCyclePhase = std::fmod(
+          state.walkCyclePhase +
+              std::clamp(deltaSeconds, 0.0F, 0.1F) * 10.0F * terrainSpeed,
+          6.2831853F);
+    }
+    if (state.attackAnimationTime >= 0.0F) {
+      state.attackAnimationTime += std::clamp(deltaSeconds, 0.0F, 0.1F);
+      if (state.attackAnimationTime >=
+          graphics::ArenaRenderer::kZombieAttackAnimationSeconds)
+        state.attackAnimationTime = -1.0F;
+    }
+    state.previousPosition = enemy.position;
+  }
+
+  for (auto stateIt = enemyRenderStates_.begin();
+       stateIt != enemyRenderStates_.end();) {
+    const bool stillAlive = std::any_of(
+        enemies.begin(), enemies.end(), [&](const gameplay::Enemy& enemy) {
+          return enemy.id == stateIt->first;
+        });
+    if (stillAlive)
+      ++stateIt;
+    else
+      stateIt = enemyRenderStates_.erase(stateIt);
+  }
+
+  if (simulationUpdated) {
+    for (const auto& attack : gameplay_.attacks()) {
+      const auto stateIt = enemyRenderStates_.find(attack.enemyId);
+      if (stateIt != enemyRenderStates_.end()) {
+        stateIt->second.attackAnimationTime = 0.0F;
+        stateIt->second.yawRadians =
+            std::atan2(attack.direction.x, attack.direction.z);
+      }
     }
   }
-  gameplay_.update(deltaSeconds, player_.position(), world_, shotTarget);
 }
 
 void ArenaScene::render(const graphics::Shader& shader, int framebufferWidth,
-                        int framebufferHeight) const {
+                        int framebufferHeight, bool normalMapping) const {
   const glm::mat4 viewProjection = camera_.viewProjection(
       player_.position(), framebufferWidth, framebufferHeight);
-  renderer_.drawWorld(shader, viewProjection);
+  renderer_.drawWorld(shader, viewProjection,
+                      camera_.worldPosition(player_.position()), level_,
+                      player_.position(), normalMapping);
   renderer_.drawPlayer(shader, viewProjection, player_.position(),
                        player_.yawRadians(), player_.walkCyclePhase(),
                        player_.isMoving());
-  for (const auto& enemy : gameplay_.enemies())
-    renderer_.drawProxy(shader, viewProjection, enemy.position,
-                        gameplay::Gameplay::enemyHalfExtents(),
-                        {0.9F, 0.2F, 0.2F});
+  std::vector<graphics::ArenaRenderer::ZombieInstance> zombieInstances;
+  zombieInstances.reserve(gameplay_.enemies().size());
+  for (const auto& enemy : gameplay_.enemies()) {
+    float yawRadians = 0.0F;
+    float walkCyclePhase = 0.0F;
+    float attackAnimationTime = -1.0F;
+    bool moving = false;
+    const auto stateIt = enemyRenderStates_.find(enemy.id);
+    if (stateIt != enemyRenderStates_.end()) {
+      yawRadians = stateIt->second.yawRadians;
+      walkCyclePhase = stateIt->second.walkCyclePhase;
+      attackAnimationTime = stateIt->second.attackAnimationTime;
+      moving = stateIt->second.moving;
+    } else {
+      glm::vec3 facing = enemy.waypoint.value_or(player_.position()) -
+                         enemy.position;
+      facing.y = 0.0F;
+      if (glm::length(facing) > 0.0001F)
+        yawRadians = std::atan2(facing.x, facing.z);
+    }
+    zombieInstances.push_back({enemy.position, yawRadians, walkCyclePhase,
+                               moving, attackAnimationTime});
+  }
+  renderer_.drawZombies(shader, viewProjection, zombieInstances);
   for (const auto& bullet : gameplay_.bullets()) {
     const bool laser = bullet.weapon == gameplay::Weapon::Laser;
     const bool bomb = bullet.weapon == gameplay::Weapon::Bomb;
+    const glm::vec3 bulletScale =
+        laser ? glm::vec3(0.06F, 0.06F, 0.55F)
+        : bomb ? glm::vec3(0.22F)
+               : glm::vec3(bullet.renderSize);
     renderer_.drawProxy(shader, viewProjection, bullet.position,
-                        laser ? glm::vec3(0.06F, 0.06F, 0.55F)
-                              : glm::vec3(bomb ? 0.22F : 0.10F),
-                        laser  ? glm::vec3(0.1F, 1.F, 1.F)
-                        : bomb ? glm::vec3(1.F, 0.4F, 0.1F)
+                        bulletScale,
+                        laser  ? (bullet.evolved ? glm::vec3(1.0F, 0.08F, 0.12F)
+                                                 : glm::vec3(0.1F, 1.F, 1.F))
+                        : bomb ? (bullet.evolved ? glm::vec3(1.F, 0.12F, 0.06F)
+                                                 : glm::vec3(1.F, 0.4F, 0.1F))
                                : glm::vec3(1.F, 0.9F, 0.2F),
-                        std::atan2(bullet.velocity.x, bullet.velocity.z));
+                        std::atan2(bullet.velocity.x, bullet.velocity.z), true);
+    if (bomb && bullet.evolved && glm::length(bullet.velocity) > 0.0001F) {
+      const glm::vec3 direction = glm::normalize(bullet.velocity);
+      const float age = 3.0F - bullet.life;
+      for (int i = 0; i < 4; ++i) {
+        const float phase = std::fmod(age * 3.2F + i * 0.31F, 1.0F);
+        const float behind = 0.12F + i * 0.09F + phase * 0.08F;
+        const float rise = 0.04F + std::fmod(age * 1.7F + i * 0.23F, 0.42F);
+        const glm::vec3 particlePosition = bullet.position - direction * behind +
+                                           glm::vec3(0.0F, rise, 0.0F);
+        const glm::vec3 particleColor = i % 2 == 0
+                                            ? glm::vec3(1.0F, 0.20F, 0.035F)
+                                            : glm::vec3(1.0F, 0.52F, 0.06F);
+        renderer_.drawProxy(shader, viewProjection, particlePosition,
+                            glm::vec3(0.035F + 0.008F * (i % 2)),
+                            particleColor);
+      }
+    }
   }
   for (const auto& blast : gameplay_.explosions())
     renderer_.drawBlast(shader, viewProjection, blast.position, blast.radius,
                         blast.age);
+  for (const auto& area : gameplay_.burningAreas()) {
+    renderer_.drawBlast(shader, viewProjection, area.position, area.radius,
+                        0.0F);
+    for (int i = 0; i < 10; ++i) {
+      const float angle = i * 2.39996323F + area.age * 0.8F;
+      const float radialFraction = 0.22F + 0.16F * (i % 4);
+      const float radialDistance = area.radius * radialFraction;
+      const float rise =
+          0.08F + std::fmod(area.age * 1.8F + i * 0.27F, 0.72F);
+      const glm::vec3 particlePosition(
+          area.position.x + std::cos(angle) * radialDistance,
+          1.08F + rise,
+          area.position.z + std::sin(angle) * radialDistance);
+      const glm::vec3 particleColor = i % 2 == 0
+                                          ? glm::vec3(1.0F, 0.18F, 0.025F)
+                                          : glm::vec3(1.0F, 0.48F, 0.045F);
+      renderer_.drawProxy(shader, viewProjection, particlePosition,
+                          glm::vec3(0.035F), particleColor);
+    }
+  }
   for (const auto& orb : gameplay_.orbs())
     renderer_.drawProxy(shader, viewProjection, orb.position, glm::vec3(0.14F),
                         {0.2F, 1.0F, 0.3F});
@@ -83,6 +251,10 @@ const FollowCamera& ArenaScene::camera() const noexcept { return camera_; }
 
 int ArenaScene::worldVertexCount() const noexcept {
   return renderer_.worldVertexCount();
+}
+
+int ArenaScene::worldDrawCallCount() const noexcept {
+  return renderer_.worldDrawCallCount();
 }
 
 }  // namespace craft::app

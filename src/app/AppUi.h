@@ -13,6 +13,7 @@ namespace craft::app {
 
 struct AppUiFrameResult {
   bool startBenchmarkRequested = false;
+  bool normalMapping = true;
   std::optional<GameUiAction> gameAction;
 };
 
@@ -30,7 +31,8 @@ class AppUi {
   // Returns benchmark and gameplay UI requests for the caller to handle.
   // Gameplay requests are intentionally not applied by this UI-only layer.
   [[nodiscard]] AppUiFrameResult draw(const BenchmarkSnapshot& benchmark,
-                                      const UiDiagnostics& diagnostics);
+                                      const UiDiagnostics& diagnostics,
+                                      world::ArenaLevel level);
   void render();
 
  private:
@@ -38,6 +40,7 @@ class AppUi {
       const BenchmarkSnapshot& benchmark) const;
 
   CustomUi customUi_;
+  bool normalMapping_ = true;
 };
 
 }  // namespace craft::app

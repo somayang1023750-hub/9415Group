@@ -5,7 +5,7 @@
 
 namespace craft::app {
 
-// Near-overhead orthographic camera, about 15 degrees from vertical.
+// Orthographic camera about 60 degrees above the arena plane.
 // Fixed local zoom follows the player and clips the distant arena.
 class FollowCamera {
  public:

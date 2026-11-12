@@ -4,6 +4,20 @@ This file records the changes made to the starter code and explain why the issue
 
 
 
+## 2026-11-11 — Member B, M2 environments and M3 normal mapping
+
+- Connected the seeded Day map and staggered Night barricades to the Game menu.
+  Each layout supplies player and enemy spawns. Switching rebuilds the mesh
+  and resets the run. Restart keeps the selected layout.
+- Added a player-following point light with distance attenuation and cool ambient
+  fill at night. Day retains the directional sunlight and Fresnel water shading.
+- Added repeating face UVs and masonry textures on cover and walls, with
+  distinct Phong highlights for sand, masonry, actors and metal projectiles.
+  World batches use GPU back-face culling alongside exposed-face meshing.
+- Added tangent-space normal maps for sand and masonry. The controls and
+  benchmark output expose the normal-map setting for visual comparisons.
+  See [Member B evidence](docs/member-b-progress.md).
+
 ## Current Member A status — 2026-11-05
 
 Member A accepted the current gameplay after Windows/Visual Studio iteration.

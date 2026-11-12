@@ -13,14 +13,30 @@ class ArenaWorld;
 }
 namespace craft::gameplay {
 
-enum class Weapon { Balance, Laser, Bomb };
+enum class Weapon { Bullet, Balance = Bullet, Laser, Bomb };
+enum class UpgradeKind { Unlock, Upgrade, Evolution };
+inline constexpr int kMaximumWeaponUpgrades = 4;
+struct WeaponState {
+  Weapon weapon = Weapon::Bullet;
+  int upgrades = 0;
+  bool evolved = false;
+};
+struct UpgradeChoice {
+  Weapon weapon = Weapon::Bullet;
+  UpgradeKind kind = UpgradeKind::Upgrade;
+  int stage = 0;
+};
 struct WeaponProfile {
   int baseDamage;
   float shotCooldown;
   float bulletSpeed;
+  int maxReflections = 0;
+  bool piercesEnemies = false;
+  float blastRadius = 0.0F;
 };
 // One source for simulation and C's weapon/upgrade UI. Speeds are blocks/sec.
 [[nodiscard]] WeaponProfile weaponProfile(Weapon weapon);
+[[nodiscard]] WeaponProfile weaponProfile(Weapon weapon, int upgrades);
 struct Enemy {
   std::uint32_t id;
   glm::vec3 position;
@@ -32,14 +48,25 @@ struct Bullet {
   glm::vec3 velocity;
   float life = 2;
   int damage = 1;
-  Weapon weapon = Weapon::Balance;
+  Weapon weapon = Weapon::Bullet;
   int reflections = 0;
   std::vector<std::uint32_t> hitEnemies;
+  float renderSize = 0.10F;
+  int maxReflections = 0;
+  bool piercesEnemies = false;
+  bool evolved = false;
+  float blastRadius = 0.0F;
 };
 struct Explosion {
   glm::vec3 position;
   float radius;
   float age = 0;
+};
+struct BurningArea {
+  glm::vec3 position;
+  float radius;
+  float age = 0.0F;
+  float nextDamageTime = 1.0F;
 };
 struct ExperienceOrb {
   glm::vec3 position;
@@ -57,13 +84,19 @@ struct ShotEvent {
   glm::vec3 direction;
   Weapon weapon;
 };
+struct EnemyAttackEvent {
+  std::uint32_t enemyId;
+  glm::vec3 position;
+  glm::vec3 direction;
+};
 struct Stats {
   int health = 5;
   int experience = 0;
   int level = 1;
   int kills = 0;
   float remainingSeconds = 180;
-  Weapon weapon = Weapon::Balance;
+  // Most recently selected weapon; full owned arsenal is exposed below.
+  Weapon weapon = Weapon::Bullet;
   Phase phase = Phase::Playing;
 };
 
@@ -86,37 +119,60 @@ class Gameplay {
   [[nodiscard]] const std::vector<Bullet>& bullets() const { return bullets_; }
   [[nodiscard]] const std::vector<ExperienceOrb>& orbs() const { return orbs_; }
   [[nodiscard]] const std::vector<Weapon>& upgradeChoices() const {
+    return offeredWeaponChoices_;
+  }
+  [[nodiscard]] const std::vector<UpgradeChoice>& upgradeOptions() const {
     return choices_;
   }
-  // Frame-local events: C can trigger recoil/hit animation, A's M3 particles
-  // can consume position/weapon information. Read before the next update.
+  [[nodiscard]] const std::vector<WeaponState>& weapons() const {
+    return weapons_;
+  }
+  [[nodiscard]] int weaponCount(Weapon weapon) const;
+  // Frame-local events: C can trigger hit animation; A's M3 particles can
+  // consume position/weapon information. Read before the next update.
   [[nodiscard]] const std::vector<HitEvent>& hits() const { return hits_; }
   [[nodiscard]] const std::vector<ShotEvent>& shots() const { return shots_; }
+  // Frame-local enemy attacks: emitted when proximity damage is applied; read
+  // before the next update, like hits() and shots().
+  [[nodiscard]] const std::vector<EnemyAttackEvent>& attacks() const {
+    return attacks_;
+  }
   // C: short-lived blast rings, separate from M3 particle effects.
   [[nodiscard]] const std::vector<Explosion>& explosions() const {
     return explosions_;
   }
-  static constexpr float enemySpeed() { return 4.3F; }  // player default: 5
-  static constexpr float blastRadius() { return 3.5F; }
+  [[nodiscard]] const std::vector<BurningArea>& burningAreas() const {
+    return burningAreas_;
+  }
+  static constexpr float enemySpeed() { return 3.3F; }  // player default: 5
+  static constexpr float blastRadius() { return 1.75F; }
   static glm::vec3 enemyHalfExtents() { return gameplay::enemyHalfExtents(); }
 
  private:
   void offerUpgrade();
   void damageEnemy(Enemy& enemy, int damage, const glm::vec3& impact,
                    Weapon weapon);
-  void explode(const glm::vec3& position, int damage);
+  void explode(const glm::vec3& position, int damage, float blastRadius,
+               bool firebomb);
   Stats stats_;
   std::vector<Enemy> enemies_;
   std::vector<Explosion> explosions_;
+  std::vector<BurningArea> burningAreas_;
   std::vector<Bullet> bullets_;
   std::vector<ExperienceOrb> orbs_;
   std::vector<HitEvent> hits_;
   std::vector<ShotEvent> shots_;
-  std::vector<Weapon> choices_;
+  std::vector<EnemyAttackEvent> attacks_;
+  std::vector<UpgradeChoice> choices_;
+  std::vector<Weapon> offeredWeaponChoices_;
+  std::vector<WeaponState> weapons_{{Weapon::Bullet, 0, false}};
+  std::vector<float> weaponShotClocks_{0.0F};
   std::uint32_t seed_, nextId_ = 1;
   std::mt19937 random_;
-  float spawnClock_ = 0, shotClock_ = 0, hurtClock_ = 0;
+  float spawnClock_ = 0, hurtClock_ = 0, elapsedSeconds_ = 0;
 };
 const char* weaponName(Weapon weapon);
 const char* weaponDescription(Weapon weapon);
+const char* upgradeName(const UpgradeChoice& choice);
+const char* upgradeDescription(const UpgradeChoice& choice);
 }  // namespace craft::gameplay

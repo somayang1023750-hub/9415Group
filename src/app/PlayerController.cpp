@@ -64,7 +64,14 @@ void PlayerController::update(const MovementInput& input, float deltaSeconds,
   yawRadians_ = std::atan2(direction.x, direction.z);
 
   const float safeDelta = std::clamp(deltaSeconds, 0.0F, kMaximumFrameStep);
-  const glm::vec3 displacement = direction * (moveSpeed_ * safeDelta);
+  const int currentCellX = static_cast<int>(std::floor(position_.x));
+  const int currentCellZ = static_cast<int>(std::floor(position_.z));
+  const float terrainSpeed =
+      world.isWaterSurface(currentCellX, currentCellZ)
+          ? world::ArenaWorld::kWaterMovementSpeedMultiplier
+          : 1.0F;
+  const glm::vec3 displacement =
+      direction * (moveSpeed_ * terrainSpeed * safeDelta);
   moving_ = false;
 
   // Resolve each horizontal axis independently so the player can slide along
@@ -85,7 +92,8 @@ void PlayerController::update(const MovementInput& input, float deltaSeconds,
 
   if (moving_) {
     walkCyclePhase_ = std::fmod(
-        walkCyclePhase_ + safeDelta * kWalkCycleRadiansPerSecond, kTwoPi);
+        walkCyclePhase_ + safeDelta * kWalkCycleRadiansPerSecond * terrainSpeed,
+        kTwoPi);
   } else {
     walkCyclePhase_ = 0.0F;
   }

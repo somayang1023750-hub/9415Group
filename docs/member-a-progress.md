@@ -1,11 +1,11 @@
 # Member A progress - Milestone 2 gameplay increment
 
-Updated: 2026-11-05 (Australia/Sydney).
+Updated: 2026-11-11 (Australia/Sydney).
 
-Status: current gameplay accepted by Member A in the development conversation.
-Code baseline: `91e0e6f`; this document consolidates the completed work through
-that commit. This is gameplay acceptance, not a claim that all team deliverables
-or final submission checks are complete.
+Status: the requested weapon progression, firebomb effect and progressive
+spawning have been restored on top of the current remote baseline. The
+application target compiles locally; Member A acceptance and CSE/VLAB validation
+remain outstanding.
 
 ## Scope and milestone boundary
 
@@ -30,43 +30,53 @@ projectiles and the blast-radius ring are functional proxies, not M3 particles.
 - Supplied camera-relative WASD supports eight directions, normalized diagonal
   speed, block collision and sliding. Scene integration also blocks entry into
   enemies. Player default speed remains 5 blocks/second.
-- Spawn one enemy every two simulation seconds, cap 24, reuse B's entry metadata,
-  require four blocks of player separation and validate live blocks/actor
-  occupancy. One enemy type has **4 HP** and moves at **4.3 blocks/second**.
+- Every two simulation seconds, use B's spawn candidates to attempt a batch,
+  capped by 24 live enemies. Add one enemy to each batch every 30 elapsed
+  gameplay seconds. Require four blocks of player separation and validate live
+  block and actor occupancy. One enemy type has **4 HP** and moves at **3.3
+  blocks/second**.
 - Enemy navigation uses four-neighbour BFS with live actor occupancy, varied
   tie directions and persistent waypoints. Blocked routes are replanned; retaining
   the waypoint through a grid-boundary crossing fixes the previous centre/turn
   oscillation. Short movement substeps prevent stepping through walls/actors.
   Crowding still queues naturally in narrow lanes; no actor overlap is allowed.
-- Left-button press edges shoot towards the cursor, independent of player
-  facing. Logical window coordinates are unprojected through C's camera onto
-  Y=1.32. ImGui capture suppresses gameplay input. Holding is not automatic fire.
+- Holding the left mouse button fires every owned weapon independently at its
+  own cooldown. Shots follow the mouse-projected world point and do not turn the
+  player model. Logical window coordinates use C's camera and framebuffer size
+  to project onto Y=1.32. ImGui capture suppresses gameplay input.
 - Swept projectile collision prevents tunnelling. Each projectile retains its
   launch-time weapon/speed/damage. Wall collisions win ties with enemy hits.
 
 | Weapon | Damage | Minimum shot interval | Projectile speed | Behaviour |
 | --- | --- | --- | --- | --- |
-| Balance | 2 | 0.30 s | 24 blocks/s | Stops on first enemy/wall; two hits kill |
-| Laser | 1 | 0.12 s | 40 blocks/s | Pierces enemies, reflects off one wall, stops on the next; four hits kill |
-| Bomb | 4 | 1.20 s | 8 blocks/s | Explodes on first enemy/wall; full damage within 3.5 blocks; one blast kills |
+| Bullet | 2 | 0.30 s | 5 blocks/s | Stops on first enemy/wall; two hits kill |
+| Laser | 1 | 0.48 s | 40 blocks/s | Stops on first enemy; reflects off one wall |
+| Bomb | 2 | 1.20 s | 8 blocks/s | Explodes on first enemy/wall; full damage within 1.75 blocks |
 
-A Laser projectile damages each enemy at most once for its whole lifetime,
-including its reflected path. It can still damage other enemies after passing
-through one. Bomb radius uses enemy-centre distance in X/Z, has no falloff and
-also affects enemies behind cover inside the radius; own bombs do not damage the
-player. A Bomb reaching its three-second lifetime also detonates. Temporary
-rendering uses yellow bullets, cyan laser streaks, orange bombs and a brief
-orange ring marking the full blast radius.
+Bullet upgrades are speed ×2, damage ×2, speed ×2, then fire rate ×2. Its fifth
+upgrade evolves it into a three-way shot with two smaller base-damage pellets
+at ±30 degrees. Laser upgrades are damage ×2, interval ×0.5, ricochets +1, then
+interval ×0.5. Its fifth upgrade evolves it into a red beam that pierces enemies
+until its first obstacle bounce; after bouncing, it damages and stops at the
+next enemy, even if that enemy was hit before the bounce. Bomb upgrades double
+blast radius, add 5 blocks/second of flight speed, double damage and increase
+fire rate by 50%. Its fifth upgrade evolves it into a firebomb with an orange-red
+flight trail and a three-second burning area dealing 2 damage per second.
+
+Bomb radius uses enemy-centre distance in X/Z, has no falloff and also affects
+enemies behind cover inside the radius; own bombs do not damage the player. A
+Bomb reaching its three-second lifetime also detonates. Firebomb burning areas
+use the upgraded bomb radius.
 
 - Kills drop one green EXP proxy. Within four blocks it attracts at seven
   blocks/second, collects within 0.65 blocks and intentionally ignores cover.
 - Threshold is `current level * 3` EXP. Level-up freezes movement, enemies,
   spawning and timer and opens a centred, dimmed-background English modal.
-  **Two distinct weapons are randomly offered** from Balance/Laser/Bomb.
-  Selection equips one, consumes EXP, increments level, restores all 5 HP and
-  resumes (or offers another level if enough EXP remains). Damage no longer
-  grows with level, so
-  the requested 2/4/1 hit counts remain valid at every level.
+  Up to two random choices are offered: an upgrade/evolution for an owned weapon
+  or an unlock for Laser/Bomb. Unlocking adds a weapon to the arsenal. Selection
+  consumes EXP, increments level, restores all 5 HP and resumes (or offers
+  another level if enough EXP remains). All owned weapons fire together while
+  the left mouse button is held.
 - Player has 5 HP and one-second invulnerability after contact damage. Survive
   180 seconds to win; lose at zero HP. Loss wins a same-frame tie. Terminal
   states stop simulation and show a centred **VICTORY** or **DEFEAT** modal with
@@ -78,7 +88,7 @@ orange ring marking the full blast radius.
 
 The latest requested view shows the player's neighbourhood, with a fixed
 orthographic half-height of 8 blocks. Camera offset is 7 blocks horizontally and
-26 vertically (about 15 degrees from vertical). Player position is always the
+12 vertically (about 60 degrees above the arena plane). Player position is always the
 view target; zoom does not change near map edges or adapt to fit the arena.
 Distant scene areas fall outside the normal view clipping volume. No Day/Night
 lighting, fog or exploration system is implied by this camera change.
@@ -96,9 +106,10 @@ A valid upgrade selection fully heals to 5 HP, including successive level-ups;
 an invalid choice does not heal or resume. The English modal explains the heal.
 New tests cover wounded-player upgrade healing, actor scaling/grounding and
 camera follow/scale/clipping/aim across landscape, portrait and ultrawide aspects.
-All 21 tests passed; runtime screenshot confirms local cropped surroundings and
-near-overhead rendering. The 240-frame render smoke passed with the new camera
-workload label; timings cannot be compared directly with the older full-map view.
+Those test and render results were recorded before the latest weapon redesign;
+they do not validate the current progression, progressive spawns or firebomb.
+The 240-frame render smoke passed with the prior camera workload label; timings
+cannot be compared directly with the older full-map view.
 Member A has accepted the current gameplay in conversation; broader device and
 resolution acceptance remains future integration work.
 
@@ -124,22 +135,28 @@ layout. Bomb blasts currently do not destroy map blocks.
   timer, level, EXP, selected weapon and kills.
 - Read-only `enemies()`, `bullets()` and `orbs()` snapshots provide positions.
   Enemy IDs remain stable until reset; navigation waypoints are gameplay-owned.
-  Replace `ArenaRenderer::drawProxy` with final actors/instances as needed.
+  `ArenaScene` now tracks enemy yaw and walk phase by ID, and
+  `ArenaRenderer::drawZombie` draws a hierarchical six-part zombie with fixed
+  forward arms and swinging legs. `Gameplay::attacks()` emits frame-local events
+  when proximity damage is applied; the scene uses these to raise the attacking
+  zombie's arms. `assets/textures/zombie.png` is the 64 × 64 skin atlas.
 - `shots()` contains launch position/direction/weapon; `hits()` contains impact
   position/enemy ID/killed/weapon. Both clear on every simulation update; consume
   before the next update and never retain references across update/reset.
+- `attacks()` contains the enemy ID, position and direction whenever proximity
+  damage is actually applied. It is frame-local and drives the zombie arm-raise
+  animation; the current one-second damage cooldown is shared globally.
 - `explosions()` contains active blast positions, radii and ages (0.4-second
-  lifetime). `drawBlast` currently draws a functional circle. A's M3 particles
-  can use the same hit/blast data without changing collision ownership.
+  lifetime); `burningAreas()` exposes firebomb position, radius and age for the
+  scene's ground ring and rising particles.
 - `weaponProfile` and `weaponDescription` share the simulation/UI contract.
-  Current enum values are `Balance`, `Laser`, `Bomb`; `Bullet` also exposes
-  reflection count and already-hit IDs for debugging.
-- `upgradeChoices()`/`chooseUpgrade(index)` own random offers and the resume
-  boundary. C can replace `GameplayUi` with the final menu while keeping it.
-  `drawGameplayUi` now returns a restart request; the caller must invoke
-  `ArenaScene::resetGameplay()` so both simulation and player reset together.
-- `aimOnPlane` uses logical cursor/window dimensions and the actual framebuffer
-  view-projection; preserve that camera/HiDPI convention for a future crosshair.
+  The enum is `Bullet` (`Balance` remains an alias), `Laser` and `Bomb`.
+  `weapons()` reports owned-weapon upgrade/evolution state, while
+  `upgradeOptions()` and `chooseUpgrade(index)` share the random card contract.
+  `upgradeChoices()` remains a weapon-only compatibility view.
+- `aimOnPlane` projects logical cursor/window dimensions with the actual
+  framebuffer view-projection onto the actor-height plane. Shooting does not
+  change the player model's facing; it uses the projected point directly.
 - Benchmark timing boundaries remain unchanged. Command-line benchmark starts
   before spawning and freezes the static scene under `milestone2-local-follow-arena`.
   In-game benchmark freezes the current actor snapshot under
@@ -149,6 +166,12 @@ layout. Bomb blasts currently do not destroy map blocks.
 ## Validation
 
 Linux cloud instance: GCC 14.2, CMake 3.31, Mesa llvmpipe software rendering.
+The current reimplementation was compiled in the existing WSL build directory
+with `cmake --build build --target Craft --clean-first --parallel 4`; all app
+sources, including `FollowCamera.cpp`, were rebuilt successfully. CTest and
+manual visual/gameplay acceptance were not run for this reimplementation.
+The prior test and render results below were recorded before the latest weapon
+redesign and do not validate its progression, progressive spawning or firebomb.
 
 ```bash
 source /workspace/.setup-9415/env.sh  # cloud-local dependencies only
@@ -225,8 +248,8 @@ the current pool/values are exclusively the Balance/Laser/Bomb table above.
 | `src/core/gameplay/Aim.h` | Camera-to-world aim conversion |
 | `src/app/ArenaScene.*` | Player/world/simulation/render integration and complete restart |
 | `src/app/GameplayUi.*` | Temporary English status, selection and outcome presentation |
-| `src/app/FollowCamera.*` | Requested local near-overhead follow view |
-| `src/graphics/ArenaRenderer.*` | Scaled player and enemy/projectile/blast proxy rendering |
+| `src/app/FollowCamera.*` | Requested angled local follow view |
+| `src/graphics/ArenaRenderer.*` | Textured hierarchical player/zombie, projectile/orb proxies and blast rendering |
 | `tests/test_gameplay.cpp` | Gameplay, navigation, weapons, healing, geometry, movement and camera regression checks |
 
 ## Next work and acceptance boundary
@@ -235,7 +258,7 @@ the current pool/values are exclusively the Balance/Laser/Bomb table above.
 | --- | --- |
 | A / M3 | Weapon-hit particle bursts/styles using shot/hit/blast data; final integration and report evidence |
 | B | Day/Night map configurations, planned lighting/material work and normal mapping |
-| C | Final actor models/animations, polished HUD/menus and crosshair, instancing/BRDF and comparative performance evidence |
+| C | Polished HUD/menus and crosshair, instancing/BRDF and comparative performance evidence |
 | Team | Wire level switching, integrate presentation, validate CSE/VLAB and target platforms, complete report/video |
 
 Further weapon balance changes should preserve the currently agreed 2/4/1 hit

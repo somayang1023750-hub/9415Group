@@ -4,6 +4,8 @@
 
 #include <glm/vec3.hpp>
 
+#include "world/ArenaLayout.h"
+
 namespace craft::app {
 
 // UI actions are requests for the gameplay layer to handle. This UI-only
@@ -32,7 +34,7 @@ class CustomUi {
   // Draws tutorial and menu controls inside an existing ImGui window. The
   // returned action is a request only; no game behavior is performed here.
   [[nodiscard]] std::optional<GameUiAction> drawContents(
-      bool interactionDisabled);
+      bool interactionDisabled, world::ArenaLevel level);
 
   // Read-only diagnostics live in a separate always-visible debug window.
   void drawDebugPanel(const UiDiagnostics& diagnostics) const;

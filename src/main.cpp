@@ -13,7 +13,6 @@
 #include "app/SceneBenchmark.h"
 #include "app/TitleScreen.h"
 #include "core/AssetPath.h"
-#include "core/gameplay/Aim.h"
 #include "graphics/ArenaRenderer.h"
 #include "graphics/OpenGL.h"
 #include "graphics/Shader.h"
@@ -43,13 +42,15 @@ void startBenchmark(craft::graphics::Window& window,
 
 void printBenchmarkResult(const craft::app::BenchmarkSnapshot& result,
                           int framebufferWidth, int framebufferHeight,
-                          const char* workload) {
+                          const char* workload, craft::world::ArenaLevel level, bool normalMapping) {
   std::cout
       << std::fixed << std::setprecision(4)
       << "benchmark_result sample_count=" << result.measuredFrames
       << " average_ms=" << result.averageMilliseconds
       << " average_fps=" << result.averageFramesPerSecond
       << " resolution=" << framebufferWidth << 'x' << framebufferHeight
+      << " level=" << (level == craft::world::ArenaLevel::Day ? "day" : "night")
+      << " normal_maps=" << (normalMapping ? "on" : "off")
       << " workload=" << workload << '\n'
       << "benchmark_note=Local follow camera; compare optimizations using "
          "the same layout, actor snapshot, camera, and framebuffer size\n";
@@ -65,7 +66,9 @@ int main() {
         craft::core::assetPath("shaders/basic.vert"),
         craft::core::assetPath("shaders/basic.frag"));
     craft::app::ArenaScene arenaScene(
-        craft::core::assetPath("textures/player.png"));
+        craft::core::assetPath("textures/player.png"),
+        craft::core::assetPath("textures/zombie.png"),
+        craft::core::assetPath("textures/sand_noise_uv.png"));
     craft::app::AppUi appUi(window);
     craft::app::SceneBenchmark benchmark;
 
@@ -83,7 +86,6 @@ int main() {
 
     glEnable(GL_DEPTH_TEST);
     double lastFrameTime = glfwGetTime();
-    bool mouseWasDown = false;
 
     while (!window.shouldClose()) {
       window.pollEvents();
@@ -114,28 +116,29 @@ int main() {
       const bool mouseDown =
           glfwGetMouseButton(window.nativeHandle(), GLFW_MOUSE_BUTTON_LEFT) ==
           GLFW_PRESS;
-      std::optional<glm::vec3> shotTarget;
-      if (mouseDown && !mouseWasDown && !ImGui::GetIO().WantCaptureMouse) {
+      std::optional<craft::app::ArenaScene::MouseAimInput> mouseAim;
+      if (mouseDown && !ImGui::GetIO().WantCaptureMouse) {
         double x, y;
         int w, h;
         glfwGetCursorPos(window.nativeHandle(), &x, &y);
         glfwGetWindowSize(window.nativeHandle(), &w, &h);
-        shotTarget = craft::gameplay::aimOnPlane(
-            arenaScene.camera().viewProjection(arenaScene.player().position(),
-                                               framebufferWidth,
-                                               framebufferHeight),
-            x, y, w, h);
+        mouseAim = craft::app::ArenaScene::MouseAimInput{
+            x, y, w, h, framebufferWidth, framebufferHeight};
       }
-      mouseWasDown = mouseDown;
       // C: the command-line benchmark freezes the current local camera scene.
       // Frozen in-game snapshots have their own label. Simulation is frozen for
       // every measured run, including command-line runs; no timing comparison
       // with dynamic gameplay is implied.
       if (!benchmark.snapshot().running) {
-        arenaScene.update(ImGui::GetIO().WantCaptureKeyboard
-                              ? craft::app::MovementInput{}
-                              : readMovementInput(window.nativeHandle()),
-                          deltaSeconds, shotTarget);
+        const auto movementInput =
+            ImGui::GetIO().WantCaptureKeyboard
+                ? craft::app::MovementInput{}
+                : readMovementInput(window.nativeHandle());
+        if (mouseAim) {
+          arenaScene.updateFromMouse(movementInput, deltaSeconds, *mouseAim);
+        } else {
+          arenaScene.update(movementInput, deltaSeconds);
+        }
       }
       if (craft::app::drawGameplayUi(arenaScene.gameplay()))
         arenaScene.resetGameplay();
@@ -150,25 +153,35 @@ int main() {
           worldVertexCount / 3 +
           craft::graphics::ArenaRenderer::kPlayerPartCount *
               craft::graphics::ArenaRenderer::kTrianglesPerPlayerPart;
+      const int enemyCount =
+          static_cast<int>(arenaScene.gameplay().enemies().size());
+      uiDiagnostics.renderedTriangles +=
+          enemyCount * craft::graphics::ArenaRenderer::kZombiePartCount *
+          craft::graphics::ArenaRenderer::kTrianglesPerPlayerPart;
       const int proxyCount =
-          static_cast<int>(arenaScene.gameplay().enemies().size() +
-                           arenaScene.gameplay().bullets().size() +
+          static_cast<int>(arenaScene.gameplay().bullets().size() +
                            arenaScene.gameplay().orbs().size());
       uiDiagnostics.renderedTriangles += proxyCount * 12;
       uiDiagnostics.drawCalls =
-          1 + craft::graphics::ArenaRenderer::kPlayerPartCount + proxyCount +
+          arenaScene.worldDrawCallCount() +
+          craft::graphics::ArenaRenderer::kPlayerPartCount +
+          (enemyCount > 0 ? craft::graphics::ArenaRenderer::kZombiePartCount
+                          : 0) +
+          proxyCount +
           static_cast<int>(arenaScene.gameplay().explosions().size());
       uiDiagnostics.framebufferWidth = framebufferWidth;
       uiDiagnostics.framebufferHeight = framebufferHeight;
       uiDiagnostics.frameTimeMilliseconds = deltaSeconds * 1000.0F;
 
       const craft::app::AppUiFrameResult uiResult =
-          appUi.draw(benchmarkState, uiDiagnostics);
+          appUi.draw(benchmarkState, uiDiagnostics, arenaScene.level());
       if (uiResult.gameAction ==
           craft::app::GameUiAction::RestartCurrentConfiguration)
         arenaScene.resetGameplay();
-      // B/C: SelectLevel1/2 remain requests until B supplies Day/Night layouts.
-      // Do not silently pretend that both buttons load different maps.
+      else if (uiResult.gameAction == craft::app::GameUiAction::SelectLevel1)
+        arenaScene.selectLevel(craft::world::ArenaLevel::Day);
+      else if (uiResult.gameAction == craft::app::GameUiAction::SelectLevel2)
+        arenaScene.selectLevel(craft::world::ArenaLevel::Night);
       if (uiResult.startBenchmarkRequested && !benchmarkState.running) {
         startBenchmark(window, benchmark);
         const auto resizedFramebuffer = window.framebufferSize();
@@ -179,16 +192,20 @@ int main() {
       benchmark.beginSceneFrame();
 
       glViewport(0, 0, framebufferWidth, framebufferHeight);
-      glClearColor(0.08F, 0.10F, 0.14F, 1.0F);
+      if (arenaScene.level() == craft::world::ArenaLevel::Night)
+        glClearColor(0.012F, 0.018F, 0.038F, 1.0F);
+      else
+        glClearColor(0.08F, 0.10F, 0.14F, 1.0F);
       glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-      arenaScene.render(shader, framebufferWidth, framebufferHeight);
+      arenaScene.render(shader, framebufferWidth, framebufferHeight, uiResult.normalMapping);
 
       const bool benchmarkCompleted = benchmark.endSceneFrame();
       if (benchmarkCompleted) {
         printBenchmarkResult(
             benchmark.snapshot(), framebufferWidth, framebufferHeight,
             commandLineBenchmark ? kSceneWorkload
-                                 : "milestone2-local-follow-gameplay-frozen");
+                                 : "milestone2-local-follow-gameplay-frozen",
+            arenaScene.level(), uiResult.normalMapping);
       }
 
       // Dear ImGui and presentation remain outside the measured scene region.

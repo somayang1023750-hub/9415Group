@@ -25,6 +25,13 @@ class ArenaWorld {
   static constexpr int kHeight = 32;
   static constexpr int kDepth = 32;
   static constexpr float kBlockSize = 1.0F;
+  // Obstacles are measured by their horizontal footprint, independent of
+  // height. Keep the cap tied to the full floor area.
+  static constexpr std::size_t kMaximumObstacleArea =
+      static_cast<std::size_t>(kWidth) * kDepth / 5;
+  static constexpr std::size_t kMaximumWaterArea =
+      static_cast<std::size_t>(kWidth) * kDepth / 4;
+  static constexpr float kWaterMovementSpeedMultiplier = 0.7F;
   static constexpr std::size_t kCellCount =
       static_cast<std::size_t>(kWidth) * kHeight * kDepth;
 
@@ -37,6 +44,7 @@ class ArenaWorld {
 
   [[nodiscard]] BlockType blockAt(int x, int y, int z) const noexcept;
   [[nodiscard]] bool isSolid(int x, int y, int z) const noexcept;
+  [[nodiscard]] bool isWaterSurface(int x, int z) const noexcept;
 
   // Map-generation hook for teammates. Out-of-range coordinates are rejected.
   void setBlock(int x, int y, int z, BlockType type);
@@ -49,6 +57,9 @@ class ArenaWorld {
   [[nodiscard]] static std::size_t index(int x, int y, int z) noexcept;
 
   std::array<BlockType, kCellCount> cells_{};
+  std::array<bool, static_cast<std::size_t>(kWidth) * kDepth> waterCells_{};
+  std::size_t waterGroundArea_ = 0;
+  std::size_t obstacleGroundArea_ = 0;
   glm::vec3 playerSpawn_;
   std::vector<glm::vec3> enemySpawnCandidates_;
 };

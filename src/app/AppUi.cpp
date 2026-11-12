@@ -39,7 +39,8 @@ void AppUi::beginFrame() {
 }
 
 AppUiFrameResult AppUi::draw(const BenchmarkSnapshot& benchmark,
-                             const UiDiagnostics& diagnostics) {
+                             const UiDiagnostics& diagnostics,
+                             world::ArenaLevel level) {
   constexpr float panelWidth = 330.0F;
   ImGui::SetNextWindowSize(ImVec2(panelWidth, 0.0F), ImGuiCond_Always);
   ImGui::SetNextWindowPos(ImVec2(10.0F, 10.0F), ImGuiCond_FirstUseEver);
@@ -47,7 +48,11 @@ AppUiFrameResult AppUi::draw(const BenchmarkSnapshot& benchmark,
                ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoResize);
 
   AppUiFrameResult result;
-  result.gameAction = customUi_.drawContents(benchmark.running);
+  result.gameAction = customUi_.drawContents(benchmark.running, level);
+  ImGui::BeginDisabled(benchmark.running);
+  ImGui::Checkbox("Surface normal maps", &normalMapping_);
+  ImGui::EndDisabled();
+  result.normalMapping = normalMapping_;
   ImGui::SeparatorText("240-frame benchmark");
   result.startBenchmarkRequested = drawBenchmarkSection(benchmark);
 

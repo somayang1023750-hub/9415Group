@@ -12,7 +12,7 @@ namespace {
 
 const glm::vec3 kWorldUp{0.0F, 1.0F, 0.0F};
 constexpr float kHorizontalCameraDistance = 7.0F;
-constexpr float kVerticalCameraDistance = 26.0F;
+constexpr float kVerticalCameraDistance = 12.0F;
 constexpr float kHalfHeight = 8.0F;
 constexpr float kNearPlane = 0.1F;
 constexpr float kFarPlane = 80.0F;
@@ -45,8 +45,9 @@ glm::mat4 FollowCamera::viewProjection(const glm::vec3& target,
   const glm::vec3 cameraPosition = worldPosition(target);
   const glm::mat4 view = glm::lookAt(cameraPosition, target, kWorldUp);
 
-  // Local player-centred view, about 15 degrees from vertical. Never fit the
-  // whole arena: fixed zoom and normal clipping keep distant areas off screen.
+  // Local player-centred view, about 60 degrees above the arena plane. Never
+  // fit the whole arena: fixed zoom and normal clipping keep distant areas off
+  // screen.
   // C: tune kHalfHeight/offsets together; aiming uses this exact same matrix.
   const float aspect = static_cast<float>(framebufferWidth) /
                        static_cast<float>(framebufferHeight);

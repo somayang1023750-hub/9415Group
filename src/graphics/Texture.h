@@ -4,7 +4,7 @@
 
 namespace craft::graphics {
 
-// Owns one 2D OpenGL texture decoded from an image file as RGBA8.
+// Owns one 2D OpenGL texture decoded as linear RGBA8 or sRGB RGBA8.
 // A valid OpenGL context must exist for the lifetime of each Texture.
 class Texture {
  public:
@@ -20,10 +20,23 @@ class Texture {
     Nearest,  // Preserve pixel-art texels across mip levels.
   };
 
+  enum class Wrapping {
+    ClampToEdge,
+    Repeat,
+  };
+
+  // Base-colour images use sRGB decoding; data maps stay linear.
+  enum class ColorSpace {
+    Linear,
+    Srgb,
+  };
+
   // Loads the image with its first row at v = 0, so UVs follow image pixels.
   explicit Texture(const std::filesystem::path& path,
                    Magnification magnification = Magnification::Linear,
-                   Minification minification = Minification::Linear);
+                   Minification minification = Minification::Linear,
+                   Wrapping wrapping = Wrapping::ClampToEdge,
+                   ColorSpace colorSpace = ColorSpace::Linear);
   ~Texture();
 
   Texture(const Texture&) = delete;

@@ -4,20 +4,24 @@
 
 The codebase is the starter code for the COMP3421/COMP9415 26T3 Computer Graphics group assignment. The project plan describes a 2.5D top-down survival arena shooter. You can find the assignment specification in [Group Assignment Specification repo](https://gitlab.cse.unsw.edu.au/coursework/COMP3421/26T3/group-assignment-spec).
 
-The current gameplay build opens an OpenGL 3.3 window, shows a start screen, and then renders a 32 × 32 × 32 block volume with a bounded arena floor, low perimeter walls, eight cover groups, a textured six-part player, and a near-overhead local follow camera. WASD movement is relative to the camera and stops at solid blocks; the player's arms and legs swing during movement. The project does **not** yet provide:
+The current gameplay build opens an OpenGL 3.3 window, shows a start screen, and then renders a 32 × 32 × 32 block volume with a bounded arena floor, low perimeter walls, two switchable layouts, a textured six-part player, a six-part Minecraft-style zombie, and an angled local follow camera. WASD movement is relative to the camera and stops at solid blocks; the player's arms and legs swing during movement, while the zombie's legs swing and its arms stay extended forward. The project does **not** yet provide:
 
 - M3 weapon-hit particle effects or final gameplay balance.
-- Final enemy models/animation, glowing EXP sphere visuals, layered player-skin overlays, or a full lighting model.
-- Chunk streaming, indexed meshing, or instanced rendering.
+- Glowing EXP sphere visuals or layered player-skin overlays.
+- Chunk streaming or indexed meshing.
 
-Member A's M2 increment adds one enemy type, click-to-shoot projectiles, EXP
-attraction, random weapon offers, HP/countdown/outcomes and restart. Enemies,
-bullets and EXP use temporary coloured cube proxies; the gameplay panel is an
-integration UI for Member C to replace. B's current map remains the M1 layout;
-Day/Night switching is pending. Member A has accepted the current gameplay after
-Windows/Visual Studio iteration. Final team integration and CSE validation remain
-outstanding. See [Member A progress](docs/member-a-progress.md) for the current
-scope, source attribution and B/C interfaces, and the
+Member A's M2 increment adds one enemy type, cursor-aimed weapons, EXP attraction,
+weapon upgrades/evolutions, progressive spawn batches, HP/countdown/outcomes and restart. Enemies use
+the new hierarchical zombie model with proximity-triggered arm-raise animation;
+bullets and EXP remain temporary coloured cube proxies. The zombie skin is
+loaded from `assets/textures/zombie.png`; when that file is absent, the model
+uses a flat green fallback. The gameplay panel uses Member C's temporary HUD
+and modal UI. The Game menu switches between the seeded Day map and the Night
+barricades. Member A accepted the earlier gameplay baseline; the latest weapon
+progression changes await review. Final team integration and CSE validation
+remain outstanding. See [Member A progress](docs/member-a-progress.md) for the current
+scope and source attribution, [Member C progress](docs/member-c-progress.md) for
+models, animation, UI and integration, and the
 [validation and replay guide](docs/member-a-validation.md) for recorded evidence,
 Windows steps and the manual gameplay checklist.
 
@@ -30,7 +34,7 @@ Implement the required features described in the [assignment specification](http
 - A C++ CMake project using OpenGL 3.3 core, GLFW, GLAD 2 (on Windows/Linux) and GLM.
 - A 32 × 32 × 32 editable block grid with a combined exposed-face arena mesh.
 - A Minecraft-style player model with a textured head, torso, arms, and legs; the limbs swing during movement.
-- A near-overhead orthographic camera (about 15 degrees from vertical) that follows the player at fixed local zoom; distant areas are clipped off screen.
+- An angled orthographic camera (about 60 degrees above the arena plane) that follows the player at fixed local zoom; distant areas are clipped off screen.
 - A start screen titled "Voxel Arena" with a pulsing "PRESS THE ENTER KEY" prompt (see [Start screen](#start-screen)).
 - Reusable 2D helpers: `Texture` (loads a PNG with stb_image into an OpenGL texture) and `TextRenderer` (draws bitmap-font text and solid rectangles in screen pixels using `assets/textures/font.png`). You can reuse them for your own HUD, such as a  hotbar.
 - One compact Dear ImGui window for arena controls and the course-provided 240-frame benchmark; extend CustomUi with gameplay-specific debug controls.
@@ -63,8 +67,9 @@ Press **Enter** on the start screen, then use **WASD** to move. Movement follows
 
 - `world/ArenaWorld` owns the 32 × 32 × 32 block grid. `blockAt`, `isSolid`, `canOccupy`, and `setBlock` are the map and collision hooks for world generation and gameplay.
 - `app/PlayerController` owns the player's position, facing direction, move speed, and movement update. Its `MovementInput` can be filled by keyboard, replay, or AI code.
-- `app/FollowCamera` provides camera-relative forward/right vectors and the view-projection matrix. Its near-overhead angle and local zoom stay fixed while its target follows the player.
+- `app/FollowCamera` provides camera-relative forward/right vectors and the view-projection matrix. Its angle and local zoom stay fixed while its target follows the player.
 - `graphics/ArenaRenderer` builds one mesh from exposed block faces and renders the player's six textured body parts. `assets/textures/player.png` uses the classic 64 × 64 skin UV layout. Call `ArenaScene::rebuildWorldGeometry()` after editing the grid.
+- The zombie uses six separate head/body/limb parts with a forward-reaching arm pose and a position-driven leg walk cycle. Add a 64 × 64 Minecraft biped zombie atlas at `assets/textures/zombie.png` to show its skin; without it, the model remains visible in green.
 - `app/ArenaScene` joins the world, player, camera, and renderer. It exposes `world()`, `player()`, and `camera()` for enemy, pickup, HUD, and game-state integration.
 
 The current grid uses X/Z for the arena plane and Y for height. Floor blocks
@@ -72,57 +77,61 @@ occupy Y=0 through Y=1; actor feet rest on top. `ActorGeometry.h` shares the 70%
 scale, Y=1.32 actor centre and collision extents. Spawn consumers use B's metadata
 X/Z and ground the smaller actors at that shared height.
 
-## Member B - Milestone 1 map foundation
+## Member B - arena layouts, lighting and materials
 
-The default map is now defined by `world/ArenaLayout`, independently of OpenGL.
-It has four corner cover groups, four side barriers, a clear central spawn area,
-and connected routes between the centre and the perimeter. Cover and boundary
-walls remain two blocks tall.
+Press Enter and select **Day** or **Night** under **Game menu**. Day uses the
+seeded sand-and-water arena with directional sunlight. Night uses staggered stone
+barricades and a warm point light that follows the player. Changing levels
+starts a new run. Restart and Play again keep the selected level.
 
-- `makeMilestoneOneLayout()` supplies the current deterministic layout.
-- `ArenaWorld(layout)` builds the floor, boundary, and cover, and rejects invalid
-  obstacle dimensions or blocked spawn positions.
-- `world.playerSpawn()` supplies the initial X/Z; `ArenaScene` grounds the smaller player through `PlayerController::setPosition`.
-- `world.enemySpawnCandidates()` supplies eight entry candidates for Member A.
-  These are not an enemy spawner: A still checks enemy dimensions, current
-  occupancy, and distance from the player before choosing a candidate.
-- Existing `setBlock`, `isSolid`, `canOccupy`, and mesh-rebuild interfaces remain
-  available. Spawn metadata describes the original layout; edits can invalidate
-  it, so callers must recheck collision after editing the map.
-
-This completes only B's first map increment. Day/Night layouts, UVs, materials,
-and lighting belong to Milestone 2; normal mapping belongs to Milestone 3.
-A's subsequent M2 increment now supplies enemies and shooting on this map.
-See [Member B progress and handoff](docs/member-b-progress.md) for verification
-and a GitLab-ready progress summary.
+**Surface normal maps** toggles the sand grain and masonry relief. Compare the
+same wall or patch of floor from the same position. The option also applies
+during a benchmark, which reports the selected level and normal-map setting.
+See [Member B progress](docs/member-b-progress.md) for rendering details,
+screenshots and validation.
 
 ## Member A - M2 gameplay and progression
 
-After Enter, use WASD and click towards red enemy cubes to shoot. Holding the
-mouse button does not auto-fire. Kills drop green EXP cubes; approaching attracts
-and collects them. Player/enemy models and collision footprints use 70% of the
-original scale. The near-overhead local camera follows the player rather than
-fitting the entire map.
+After Enter, use WASD and hold the left mouse button to fire all unlocked weapons
+toward the cursor. Each weapon has its own firing interval. Kills drop green EXP
+cubes; approaching attracts and collects them. The angled local camera follows
+the player rather than fitting the entire map.
 
-Level-up pauses gameplay and opens a centred English dialog offering two random
-distinct weapons. Select one to restore all 5 HP and resume. Damage remains fixed
-across levels against 4-HP enemies:
+Level-up pauses gameplay and offers up to two side-by-side upgrade cards, each
+with a drawn icon, name, description and combat stats. Selecting one restores
+all 5 HP and resumes. The starting loadout is Bullet; Laser and Bomb can be
+unlocked as additional weapons:
 
 | Weapon | Damage | Shot interval | Speed | Behaviour |
 | --- | --- | --- | --- | --- |
-| Balance | 2 | 0.30 s | 24 blocks/s | Standard bullet; two-hit kill |
-| Laser | 1 | 0.12 s | 40 blocks/s | Piercing, one wall reflection; four-hit kill |
-| Bomb | 4 | 1.20 s | 8 blocks/s | Enemy/wall impact explosion, full damage within 3.5 blocks; one-hit kill |
+| Bullet | 2 | 0.30 s | 5 blocks/s | Stops at first enemy or wall |
+| Laser | 1 | 0.48 s | 40 blocks/s | Stops at first enemy; one wall reflection |
+| Bomb | 2 | 1.20 s | 8 blocks/s | Explodes within 1.75 blocks of impact |
 
-Enemies use persistent waypoints and live occupancy to reroute, moving at 4.3
-blocks/second versus the player's 5. HP reaching zero or surviving 180 simulation
+Bullet upgrades are speed ×2, damage ×2, speed ×2, then fire rate ×2. Its fifth
+selection evolves it into a three-way shot, with smaller normal-damage bullets
+at ±30 degrees. Laser upgrades are damage ×2, interval ×0.5, ricochets +1, then
+interval ×0.5. Its fifth selection evolves it into a red beam that pierces
+enemies until its first obstacle bounce; after bouncing, the next enemy stops
+it. Bomb upgrades double blast radius, add 5 blocks/second of flight speed,
+double damage and increase fire rate by 50%. Its fifth selection evolves it
+into a firebomb with orange-red flight sparks and a three-second burning area
+that deals 2 damage each second within its radius.
+
+Enemies use persistent waypoints and live occupancy to reroute, moving at 3.3
+blocks/second versus the player's 5. Each two-second spawn batch grows by one
+enemy every 30 seconds, subject to the 24-enemy cap. HP reaching zero or surviving 180 simulation
 seconds opens a clear English DEFEAT/VICTORY dialog with Play again. The status
-panel shows HP, time, EXP, level and weapon. Restart resets player and gameplay
-on the current map; Day/Night selection awaits B's maps and level-loading work.
+panel shows HP, time, EXP, level and weapon progression. Restart resets player and gameplay
+on the current map. Selecting Day or Night starts a fresh run on that map.
 
 `core/gameplay/Gameplay` is CPU-only. `ArenaScene::gameplay()` supplies read-only
 actor snapshots, stats and per-frame shot/hit events for C's HUD, animation and
-instancing work. Interface comments and [A's handoff](docs/member-a-progress.md)
+instancing work. `ArenaScene` tracks each enemy's render-only walk phase, yaw,
+and arm-raise animation by stable enemy ID. `Gameplay::attacks()` reports each
+proximity-damage attack for presentation consumers and clears it on the next
+simulation update.
+Interface comments and [A's handoff](docs/member-a-progress.md)
 describe coordinate conventions and integration boundaries. No M3 particles or
 separate weapon models are included.
 
