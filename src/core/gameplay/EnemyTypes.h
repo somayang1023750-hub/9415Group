@@ -45,8 +45,11 @@ inline std::array<float, 3> enemySpawnWeights(world::ArenaLevel level,
   return {zombie, golem, 1.F - zombie - golem};
 }
 inline float enemySpawnInterval(world::ArenaLevel level, float elapsedSeconds) {
-  // Lower early Night pressure while only the faster Spiders are available.
-  return level == world::ArenaLevel::Night && elapsedSeconds < 30.F ? 3.F : 2.F;
+  if (level == world::ArenaLevel::Day) return 2.F;
+  if (elapsedSeconds <= 30.F) return 1.5F;
+  if (elapsedSeconds >= 60.F) return 2.F;
+  // Gradually slow Night batches from 1.5 s to 2 s over 30-60 active seconds.
+  return 1.5F + (elapsedSeconds - 30.F) / 60.F;
 }
 
 inline const char* enemyName(EnemyKind kind) {

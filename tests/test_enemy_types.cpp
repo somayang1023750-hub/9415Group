@@ -480,22 +480,33 @@ TEST_CASE("A blocked follower waits steadily and resumes after the queue moves",
     REQUIRE(stopped[i].position.z - game.enemies()[i].position.z > 3);
 }
 
-TEST_CASE("Early Night spawns only Spiders at a slower real cadence", "[enemies][spawn]") {
+TEST_CASE("Night starts at 1.5-second batches and smoothly returns to two seconds", "[enemies][spawn]") {
   craft::world::ArenaLayout layout;
   layout.enemySpawnCandidates={{3.5F,1.45F,3.5F},{28.5F,1.45F,3.5F},{3.5F,1.45F,28.5F},{28.5F,1.45F,28.5F}};
   const ArenaWorld world(layout);
   Gameplay night,day;
   night.reset(ArenaLevel::Night);
   day.reset(ArenaLevel::Day);
-  REQUIRE(enemySpawnInterval(ArenaLevel::Night,0)==3);
-  REQUIRE(enemySpawnInterval(ArenaLevel::Night,29.99F)==3);
-  REQUIRE(enemySpawnInterval(ArenaLevel::Night,30)==2);
+  REQUIRE(enemySpawnInterval(ArenaLevel::Night,0)==1.5F);
+  REQUIRE(enemySpawnInterval(ArenaLevel::Night,29.99F)==1.5F);
+  REQUIRE(enemySpawnInterval(ArenaLevel::Night,30)==1.5F);
   REQUIRE(enemySpawnInterval(ArenaLevel::Day,0)==2);
-  for(int i=0;i<28;++i) {night.update(.1F,player,world);day.update(.1F,player,world);}
-  REQUIRE(night.enemies().size()==1);
-  REQUIRE(day.enemies().size()==2);
-  for(int i=0;i<8;++i)night.update(.1F,player,world);
+  REQUIRE(enemySpawnInterval(ArenaLevel::Night,45)==Catch::Approx(1.75F));
+  REQUIRE(enemySpawnInterval(ArenaLevel::Night,60)==2);
+  float previous=1.5F;
+  for(int t=0;t<=180;++t) {
+    const float interval=enemySpawnInterval(ArenaLevel::Night,static_cast<float>(t));
+    REQUIRE(interval>=previous);
+    REQUIRE(interval>=1.5F);
+    REQUIRE(interval<=2.F);
+    REQUIRE(enemySpawnInterval(ArenaLevel::Day,static_cast<float>(t))==2);
+    previous=interval;
+  }
+  for(int i=0;i<18;++i) {night.update(.1F,player,world);day.update(.1F,player,world);}
   REQUIRE(night.enemies().size()==2);
+  REQUIRE(day.enemies().size()==1);
+  for(int i=0;i<18;++i)night.update(.1F,player,world);
+  REQUIRE(night.enemies().size()==3);
   for(const auto& e:night.enemies())REQUIRE(e.kind==EnemyKind::Spider);
   night.reset();night.update(.1F,player,world);
   REQUIRE(night.level()==ArenaLevel::Night);

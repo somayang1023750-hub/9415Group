@@ -102,7 +102,7 @@ that every row was independently executed on every platform.
 | Movement | Walk diagonally, along cover and around a corner | Normalized speed; walls and actors block passage |
 | Camera | Walk across the arena and towards its edge | Player stays centred, local zoom stays fixed, distant areas are off screen |
 | Enemy chase | Kite all three kinds around cover, narrow gaps and corners; pack enemies side by side, then move away | Typed speeds/bounds apply; crowded followers wait/sidestep without repeated retreat/advance; they resume when space opens; walls and actors still block overlap |
-| Mixed encounters | Play Day beyond 120 s and Night beyond 120 s | Day ramps to 70:30 Zombie:Golem; Night starts Spider-only, adds Zombies after 30 s and Golems after 60 s, reaching 30:50:20 Spider:Zombie:Golem; time excludes pauses; early Night attempts batches every 3 s rather than 2 s |
+| Mixed encounters | Play Day beyond 120 s and Night beyond 120 s | Day ramps to 70:30 Zombie:Golem; Night starts Spider-only, adds Zombies after 30 s and Golems after 60 s, reaching 30:50:20 Spider:Zombie:Golem; time excludes pauses; Night batches use 1.5 s initially, increasing smoothly to 2 s over 30-60 s |
 | Safe spawning | Stand on/near a map entry and cross another entry before the next batch | New enemies appear outside the six-block body-edge safe zone; no unsafe forced spawn when entries are blocked |
 | Bullet | Hold the left mouse button toward a fresh red enemy | Fires at its own cooldown; two base hits kill; cover stops the projectile |
 | EXP | Approach a green drop | Attraction starts within four blocks, pickup adds EXP |

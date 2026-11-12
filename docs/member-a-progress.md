@@ -48,7 +48,7 @@ retain the `5af6183` implementation.
   ties. Each projectile keeps its launch-time damage, speed, weapon and evolution.
 - Typed spawning uses B's live candidates, a six-block body-edge safety zone,
   body-specific clearance, a 24-live-enemy cap and normally two-second batches
-  (three seconds during the first 30 seconds of Night).
+  (1.5 seconds during the first 30 seconds of Night, ramping to two by 60 seconds).
   Batch size gains one every 30 active seconds.
   Unsafe candidates remain rejected during type/entry fallback; a batch is
   skipped when no safe entry exists. The explicit staging API retains its old
@@ -117,7 +117,8 @@ or spawn randomness. Original trail/ground-fire cubes retain lit proxy rendering
 Day Golems enter after 60 seconds and ramp to Zombie:Golem 70:30 by 120.
 Night starts with Spiders; Zombies enter after 30 seconds and Golems after 60.
 By 120 seconds the weights are Spider:Zombie:Golem 30:50:20.
-Early Night uses a three-second spawn interval until 30 seconds, then two seconds. Each new type ramps linearly for 60
+Night uses a 1.5-second spawn interval until 30 seconds, then increases it
+linearly to two seconds by 60 seconds and holds it there. Each new type ramps linearly for 60
 seconds. These are generation weights, not quotas for surviving enemies.
 Three distinct hierarchical models, typed geometry and procedural Golem/Spider
 skin assets are integrated with C's instanced renderer. All types retain B's

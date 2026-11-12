@@ -53,9 +53,11 @@ kills. Every selected body is tested against every entry. If all entries reject
 it, another currently eligible kind can fill the slot. No ineligible type is
 introduced as a fallback. Blocked entries can therefore affect the realised mix.
 
-Night attempts a batch every **3 seconds before 30 active seconds** (one third
-fewer attempts than the normal two-second interval). At/after 30 seconds it uses
-2 seconds, as Day does throughout. The first batch is immediate. Add one to batch
+Night attempts a batch every **1.5 seconds for the first 30 active seconds**.
+Over 30-60 seconds the interval increases linearly from 1.5 to 2 seconds
+(1.75 seconds at 45 seconds), then stays at 2 seconds. Day uses 2 seconds
+throughout. Each interval is sampled when a batch is attempted; the first
+batch is immediate. Add one to batch
 size every 30 seconds, and cap at 24 live enemies. Automatic encounters now require **six
 blocks of horizontal clearance between player/enemy body edges**, using the live
 player position and selected type's footprint. This replaces the old automatic

@@ -67,5 +67,6 @@ The editable Word snapshot retains its earlier gameplay baseline to avoid
 overwriting a contributor's in-progress report. For your final report, update
 Spider HP to 3 (0.75x Zombie), and Night's sequence to Spider at start, Zombie
 after 30 s, Golem after 60 s. The final weights at 120 s are Spider:Zombie:Golem
-30:50:20; early Night's batch interval is 3 s before 30 s, then 2 s. See the
+30:50:20; Night's batch interval is 1.5 s until 30 s, rising linearly to 2 s by 60 s
+and remaining at 2 s thereafter. See the
 current [enemy specification](../../docs/member-a-monsters.md).

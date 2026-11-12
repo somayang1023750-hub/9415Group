@@ -124,7 +124,8 @@ speed 2.1 and EXP 2; smaller Spiders have exactly 3 HP, 1 damage, speed 4.5
 and EXP 1. Player speed is 5. Day Golems ramp in after 60 seconds to a 70:30
 Zombie/Golem mix at 120 seconds. Night begins with Spiders; Zombies ramp in after 30 seconds and Golems after 60,
 reaching Spider:Zombie:Golem = 30:50:20 at 120 seconds. Early Night batches are
-three seconds apart before 30 seconds, then two seconds apart. These are generation weights, not
+1.5 seconds apart for the first 30 seconds, then gradually slow to two seconds
+apart over 30-60 seconds and remain at two seconds thereafter. These are generation weights, not
 live population quotas. See [mixed enemy encounters](docs/member-a-monsters.md).
 Automatic encounters keep a six-block safety clearance between the player's
 and enemy's body edges. Unsafe entries stay rejected on every type/entry retry;

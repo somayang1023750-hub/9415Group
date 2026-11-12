@@ -4,6 +4,14 @@ This file records the changes made to the starter code and explain why the issue
 
 
 
+## 2026-11-13 — Member A: revise early Night spawn cadence
+
+- Night now attempts batches every 1.5 s during the first 30 active seconds.
+  Over 30-60 s the interval rises linearly to 2 s, then remains at 2 s.
+- Retained the Spider-first release sequence, 30:50:20 final generation weights,
+  3-HP Spiders, normal batch-size growth and Day pacing.
+- Updated real-cadence and monotonic transition checks; full build and 50 tests pass.
+
 ## 2026-11-13 — Member A: Spider health and Night encounter pacing
 
 - Set Spider health to 3 HP (0.75x Zombie); retained damage, speed and EXP.
