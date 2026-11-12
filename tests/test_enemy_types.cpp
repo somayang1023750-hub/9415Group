@@ -35,8 +35,8 @@ TEST_CASE(
   REQUIRE(g.health == z.health * 3.5F);
   REQUIRE(g.contactDamage == z.contactDamage * 2);
   REQUIRE(g.experience == z.experience * 2);
-  REQUIRE(s.health == Catch::Approx(z.health * .85F));
-  REQUIRE(s.health == Catch::Approx(3.4F));
+  REQUIRE(s.health == Catch::Approx(z.health * .75F));
+  REQUIRE(s.health == Catch::Approx(3.F));
   REQUIRE(s.contactDamage == z.contactDamage);
   REQUIRE(s.experience == z.experience);
   REQUIRE(g.speed < z.speed);
@@ -62,8 +62,8 @@ TEST_CASE("Day and Night spawn weights ramp only after their release times",
     for (float w : d) REQUIRE(w >= 0);
     for (float w : n) REQUIRE(w >= 0);
     if (sec <= 60) REQUIRE(d[1] == 0);
-    if (sec <= 30) REQUIRE(n[1] == 0);
-    if (sec <= 60) REQUIRE(n[2] == 0);
+    if (sec <= 30) { REQUIRE(n[0] == 0); REQUIRE(n[2] == 1); }
+    if (sec <= 60) REQUIRE(n[1] == 0);
   }
   auto d = enemySpawnWeights(ArenaLevel::Day, 90);
   REQUIRE(d[1] == Catch::Approx(.15));
@@ -71,11 +71,17 @@ TEST_CASE("Day and Night spawn weights ramp only after their release times",
   REQUIRE(d[0] == Catch::Approx(.7));
   REQUIRE(d[1] == Catch::Approx(.3));
   auto n = enemySpawnWeights(ArenaLevel::Night, 60);
-  REQUIRE(n[1] == Catch::Approx(.075));
+  REQUIRE(n[0] == Catch::Approx(.25));
+  REQUIRE(n[1] == 0);
+  REQUIRE(n[2] == Catch::Approx(.75));
+  n = enemySpawnWeights(ArenaLevel::Night, 90);
+  REQUIRE(n[0] == Catch::Approx(.5));
+  REQUIRE(n[1] == Catch::Approx(.1));
+  REQUIRE(n[2] == Catch::Approx(.4));
   n = enemySpawnWeights(ArenaLevel::Night, 120);
-  REQUIRE(n[0] == Catch::Approx(.6));
-  REQUIRE(n[1] == Catch::Approx(.15));
-  REQUIRE(n[2] == Catch::Approx(.25));
+  REQUIRE(n[0] == Catch::Approx(.5));
+  REQUIRE(n[1] == Catch::Approx(.2));
+  REQUIRE(n[2] == Catch::Approx(.3));
 }
 TEST_CASE("Autonomous mixed batches follow level weights and respect live cap",
           "[enemies]") {
@@ -202,7 +208,7 @@ TEST_CASE("Mixed enemy contact deals typed damage with player invulnerability",
   }
 }
 TEST_CASE(
-    "Typed projectile hits preserve fractional HP and drop typed experience "
+    "Typed projectile hits preserve profile HP and drop typed experience "
     "once",
     "[enemies]") {
   const auto world = emptyArena();
@@ -472,4 +478,27 @@ TEST_CASE("A blocked follower waits steadily and resumes after the queue moves",
   }
   for (std::size_t i = 0; i < stopped.size(); ++i)
     REQUIRE(stopped[i].position.z - game.enemies()[i].position.z > 3);
+}
+
+TEST_CASE("Early Night spawns only Spiders at a slower real cadence", "[enemies][spawn]") {
+  craft::world::ArenaLayout layout;
+  layout.enemySpawnCandidates={{3.5F,1.45F,3.5F},{28.5F,1.45F,3.5F},{3.5F,1.45F,28.5F},{28.5F,1.45F,28.5F}};
+  const ArenaWorld world(layout);
+  Gameplay night,day;
+  night.reset(ArenaLevel::Night);
+  day.reset(ArenaLevel::Day);
+  REQUIRE(enemySpawnInterval(ArenaLevel::Night,0)==3);
+  REQUIRE(enemySpawnInterval(ArenaLevel::Night,29.99F)==3);
+  REQUIRE(enemySpawnInterval(ArenaLevel::Night,30)==2);
+  REQUIRE(enemySpawnInterval(ArenaLevel::Day,0)==2);
+  for(int i=0;i<28;++i) {night.update(.1F,player,world);day.update(.1F,player,world);}
+  REQUIRE(night.enemies().size()==1);
+  REQUIRE(day.enemies().size()==2);
+  for(int i=0;i<8;++i)night.update(.1F,player,world);
+  REQUIRE(night.enemies().size()==2);
+  for(const auto& e:night.enemies())REQUIRE(e.kind==EnemyKind::Spider);
+  night.reset();night.update(.1F,player,world);
+  REQUIRE(night.level()==ArenaLevel::Night);
+  REQUIRE(night.enemies().size()==1);
+  REQUIRE(night.enemies()[0].kind==EnemyKind::Spider);
 }

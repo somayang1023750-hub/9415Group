@@ -1,6 +1,6 @@
 # Member A - mixed enemy encounters
 
-Updated: 2026-11-12 (Australia/Sydney). Built on team baseline `8c1a587`.
+Updated: 2026-11-13 (Australia/Sydney). Built on team baseline `8c1a587`.
 The first increment added the approved mixed encounters. The follow-up raises
 Golem health, fixes a reproduced corner-routing stall and adds larger Golem EXP
 drops. Weapon effects are documented in [hit effects](member-a-effects.md).
@@ -12,11 +12,11 @@ B's levels/lighting and C's material/instance attribute contracts are retained.
 | --- | --- | --- | --- | --- |
 | Zombie | 4 | 1 | 3.3 | 1 |
 | Golem | **14** | 2 | 2.1 | 2 |
-| Spider | **3.4** | 1 | 4.5 | 1 |
+| Spider | **3** | 1 | 4.5 | 1 |
 
 The Golem has **3.5 times Zombie health**, twice its damage and twice its EXP.
 Spider HP is exactly
-`4 * 0.85`; enemy health is floating point rather than rounded. The player's
+`4 * 0.75 = 3`; enemy health profiles still use floating point. The player's
 current speed remains 5. The existing one-second player damage protection is
 shared across all attackers, preventing simultaneous crowd hits from bypassing
 invulnerability. A kill awards one orb with the typed EXP value (Golem value 2),
@@ -35,24 +35,28 @@ using only the Python standard library; normal builds use the committed PNGs.
 ## Encounter curves
 
 All times are **active simulation seconds**, excluding upgrade/benchmark pauses.
-Each new type ramps linearly over 60 seconds after its release time:
+Newly joining types ramp linearly over 60 seconds after release. Night opens
+with Spiders as its initial population:
 
 | Active time | Day: Zombie/Golem/Spider | Night: Zombie/Golem/Spider |
 | --- | --- | --- |
-| 0-30 s | 100% / 0% / 0% | 100% / 0% / 0% |
-| 60 s | 100% / 0% / 0% | 92.5% / 7.5% / 0% |
-| 90 s | 85% / 15% / 0% | 72.5% / 15% / 12.5% |
-| 120-180 s | **70% / 30% / 0%** | **60% / 15% / 25%** |
+| 0-30 s | 100% / 0% / 0% | 0% / 0% / 100% |
+| 60 s | 100% / 0% / 0% | 25% / 0% / 75% |
+| 90 s | 85% / 15% / 0% | 50% / 10% / 40% |
+| 120-180 s | **70% / 30% / 0%** | **50% / 20% / 30%** |
 
-Day Golems start after 60 s, Night Golems after 30 s, and Night Spiders after
-60 s. Day never autonomously spawns Spiders. Weighted random selection describes
+Day Golems start after 60 s. Night starts with Spiders; Zombies ramp in from
+30-90 s and Golems from 60-120 s, finishing at Spider:Zombie:Golem = 3:5:2.
+Day never autonomously spawns Spiders. Weighted random selection describes
 generation proportions when entries are available; live proportions vary with
 kills. Every selected body is tested against every entry. If all entries reject
 it, another currently eligible kind can fill the slot. No ineligible type is
 introduced as a fallback. Blocked entries can therefore affect the realised mix.
 
-Retained team rules: attempt a batch every 2 seconds, add one to batch size every
-30 seconds, and cap at 24 live enemies. Automatic encounters now require **six
+Night attempts a batch every **3 seconds before 30 active seconds** (one third
+fewer attempts than the normal two-second interval). At/after 30 seconds it uses
+2 seconds, as Day does throughout. The first batch is immediate. Add one to batch
+size every 30 seconds, and cap at 24 live enemies. Automatic encounters now require **six
 blocks of horizontal clearance between player/enemy body edges**, using the live
 player position and selected type's footprint. This replaces the old automatic
 four-block centre-distance rule. Every entry/type fallback repeats the safety
@@ -122,8 +126,8 @@ adds colour at attribute 8 without changing these model attributes.
 ## Validation and remaining limits
 
 - Full application CMake Release build passed on Linux/GCC 14.2.
-- **17 enemy test cases passed**, covering exact ratios, time curves,
-  weighted generation, typed clearance, damage/invulnerability, fractional HP,
+- **18 enemy test cases passed**, covering exact ratios, time curves,
+  weighted generation, typed clearance, damage/invulnerability, typed HP,
   rewards, mixed crowd routing, wall-adjacent approach, pause/reset, both real
   maps' entry compatibility, the cap, water slowdown and corner-grazing recovery
   across all three body types, automatic body-edge safety, near-entry rejection,
@@ -134,7 +138,7 @@ adds colour at attribute 8 without changing these model attributes.
   Both fail against the previous navigation code: one records eight repeated
   reversals; the other moves a full 0.09 blocks while it should be waiting.
   Both pass now, with per-step clearance, speed and no-overlap checks retained.
-- Current suite: **49 cases passed**. The earlier monster-only delivery recorded
+- Current suite: **50 cases passed**. The earlier monster-only delivery recorded
   28/34 passing: six tests still asserted obsolete weapon, speed and camera rules.
   The follow-up refreshes those expectations and adds real weapon-unlock,
   independent-cooldown, progression/evolution and particle coverage. Tests are

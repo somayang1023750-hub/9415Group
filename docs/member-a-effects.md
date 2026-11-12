@@ -1,6 +1,6 @@
 # Member A - weapon impacts and Night fill lights
 
-Updated: 2026-11-12 (Australia/Sydney). Follow-up to mixed encounters in `e32b7cf`.
+Updated: 2026-11-13 (Australia/Sydney). Follow-up to mixed encounters in `e32b7cf`.
 
 ## Visible behaviour
 
@@ -73,7 +73,7 @@ receive no added light.
 
 ## Verification
 
-- The full C++17 application builds in Linux Release; all 49 current tests pass.
+- The full C++17 application builds in Linux Release; all 50 current tests pass.
   Eight particle cases cover colour/expiry, radial motion, rising/orbiting fire,
   pause/reset, bounded pools, transient real wall events, visual RNG isolation,
   original fire size/colour/rise, burst expiry with lingering fire and bounded fading lights. Enemy tests cover

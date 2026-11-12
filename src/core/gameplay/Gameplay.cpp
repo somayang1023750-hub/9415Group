@@ -13,7 +13,6 @@
 
 namespace craft::gameplay {
 namespace {
-constexpr float kEnemySpawnIntervalSeconds = 2.0F;
 constexpr float kSpawnBatchIncreaseSeconds = 30.0F;
 constexpr float radius = 0.10F;
 float distance(const glm::vec3& a, const glm::vec3& b) {
@@ -245,7 +244,7 @@ void Gameplay::update(float dt, const glm::vec3& player,
         if (!spawned) break;
       }
     }
-    spawnClock_ = kEnemySpawnIntervalSeconds;
+    spawnClock_ = enemySpawnInterval(level_, elapsedSeconds_);
   }
   if (target && std::isfinite(target->x) && std::isfinite(target->z)) {
     glm::vec3 direction{target->x - player.x, 0, target->z - player.z};

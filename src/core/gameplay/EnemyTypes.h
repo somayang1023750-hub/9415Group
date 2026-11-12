@@ -17,13 +17,13 @@ struct EnemyProfile {
   float centreY;
 };
 // A/C contract: use the actual type bounds for spawn, pathfinding, hits and
-// models. Spider HP remains exactly 4 * 0.85, rather than rounding to an int.
+// models. Spider HP is 4 * 0.75 = 3; profiles remain floating point.
 inline EnemyProfile enemyProfile(EnemyKind kind) {
   switch (kind) {
     case EnemyKind::Golem:
       return {14.F, 2, 2, 2.1F, {.37F, .43F, .37F}, 1.442F};
     case EnemyKind::Spider:
-      return {4.F * .85F, 1, 1, 4.5F, {.22F, .20F, .24F}, 1.212F};
+      return {4.F * .75F, 1, 1, 4.5F, {.22F, .20F, .24F}, 1.212F};
     default:
       return {4.F, 1, 1, 3.3F, enemyHalfExtents(), kActorCentreY};
   }
@@ -35,14 +35,20 @@ inline std::array<float, 3> enemySpawnWeights(world::ArenaLevel level,
   const auto ramp = [](float t, float start) {
     return t <= start ? 0.F : t >= start + 60.F ? 1.F : (t - start) / 60.F;
   };
-  const float golem = level == world::ArenaLevel::Day
-                          ? .30F * ramp(elapsedSeconds, 60.F)
-                          : .15F * ramp(elapsedSeconds, 30.F);
-  const float spider = level == world::ArenaLevel::Night
-                           ? .25F * ramp(elapsedSeconds, 60.F)
-                           : 0.F;
-  return {1.F - golem - spider, golem, spider};
+  if (level == world::ArenaLevel::Day) {
+    const float golem = .30F * ramp(elapsedSeconds, 60.F);
+    return {1.F - golem, golem, 0.F};
+  }
+  // Night starts with Spiders; new types join smoothly after their release.
+  const float zombie = .50F * ramp(elapsedSeconds, 30.F);
+  const float golem = .20F * ramp(elapsedSeconds, 60.F);
+  return {zombie, golem, 1.F - zombie - golem};
 }
+inline float enemySpawnInterval(world::ArenaLevel level, float elapsedSeconds) {
+  // Lower early Night pressure while only the faster Spiders are available.
+  return level == world::ArenaLevel::Night && elapsedSeconds < 30.F ? 3.F : 2.F;
+}
+
 inline const char* enemyName(EnemyKind kind) {
   switch (kind) {
     case EnemyKind::Golem:

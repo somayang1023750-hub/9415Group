@@ -4,6 +4,16 @@ This file records the changes made to the starter code and explain why the issue
 
 
 
+## 2026-11-13 — Member A: Spider health and Night encounter pacing
+
+- Set Spider health to 3 HP (0.75x Zombie); retained damage, speed and EXP.
+- Night starts Spider-only. Zombies ramp in over 30-90 s; Golems over 60-120 s.
+  Final generation weights are Spider:Zombie:Golem = 30:50:20.
+- Early Night attempts batches every 3 s before 30 active seconds, then every
+  2 s. Day's curve/pacing, crowd routing, cap and six-block safety are retained.
+- Full game/range build and 50 tests pass, including actual early spawn cadence,
+  eligibility, pause/reset, weighted generation and the normal combat regressions.
+
 ## 2026-11-13 — Member A: unambiguous training-range launcher
 
 - Renamed the executable output to MemberATrainingRange and added a v2 window/

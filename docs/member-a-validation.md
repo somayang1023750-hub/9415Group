@@ -1,13 +1,13 @@
 # Member A validation and replay guide
 
-Updated: 2026-11-12 (Australia/Sydney). Current follow-up builds on `e32b7cf`.
+Updated: 2026-11-13 (Australia/Sydney). Current follow-up builds on `e32b7cf`.
 
 ## Current evidence
 
 | Check | Recorded outcome | Limit |
 | --- | --- | --- |
 | Full C++17 application build | Passed, Linux Release / GCC 14.2 | Not a Windows or CSE result |
-| Current regression suite | 49 cases passed: 17 gameplay, 17 enemy, eight particle, five world, one math, one training-range isolation case | CPU checks do not replace visual/balance acceptance |
+| Current regression suite | 50 cases passed: 17 gameplay, 18 enemy, eight particle, five world, one math, one training-range isolation case | CPU checks do not replace visual/balance acceptance |
 | Automatic spawn safety | Six-block body-edge exclusion tested in Day/Night, including unsafe fallbacks, no safe entries, moving onto an old entry and accepting a position inside the former eight-block zone | Explicit fixture staging retains the old four-block minimum |
 | Crowd stability | 36 side-by-side configurations plus stationary/following queue passed; both new cases fail with the previous navigation implementation | Occasional legitimate turns and physical queues remain expected |
 | Corner-grazing regression | All three kinds and multiple edge offsets reach the target; every step checks clearance and speed | Crowded lanes may still queue physically |
@@ -102,7 +102,7 @@ that every row was independently executed on every platform.
 | Movement | Walk diagonally, along cover and around a corner | Normalized speed; walls and actors block passage |
 | Camera | Walk across the arena and towards its edge | Player stays centred, local zoom stays fixed, distant areas are off screen |
 | Enemy chase | Kite all three kinds around cover, narrow gaps and corners; pack enemies side by side, then move away | Typed speeds/bounds apply; crowded followers wait/sidestep without repeated retreat/advance; they resume when space opens; walls and actors still block overlap |
-| Mixed encounters | Play Day beyond 120 s and Night beyond 120 s | Day ramps to 70:30 Zombie:Golem; Night to 60:15:25 Zombie:Golem:Spider; time excludes pauses |
+| Mixed encounters | Play Day beyond 120 s and Night beyond 120 s | Day ramps to 70:30 Zombie:Golem; Night starts Spider-only, adds Zombies after 30 s and Golems after 60 s, reaching 30:50:20 Spider:Zombie:Golem; time excludes pauses; early Night attempts batches every 3 s rather than 2 s |
 | Safe spawning | Stand on/near a map entry and cross another entry before the next batch | New enemies appear outside the six-block body-edge safe zone; no unsafe forced spawn when entries are blocked |
 | Bullet | Hold the left mouse button toward a fresh red enemy | Fires at its own cooldown; two base hits kill; cover stops the projectile |
 | EXP | Approach a green drop | Attraction starts within four blocks, pickup adds EXP |
