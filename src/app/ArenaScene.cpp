@@ -78,7 +78,7 @@ void ArenaScene::updateInternal(const MovementInput& input, float deltaSeconds,
     }
     gameplay_.update(deltaSeconds, player_.position(), world_, shotTarget);
     effects_.update(deltaSeconds, gameplay_.impacts(),
-                    gameplay_.burningAreas());
+                    gameplay_.burningAreas(), gameplay_.bullets());
   }
 
   const auto& enemies = gameplay_.enemies();
@@ -198,23 +198,6 @@ void ArenaScene::render(const graphics::Shader& shader, int framebufferWidth,
                                                  : glm::vec3(1.F, 0.4F, 0.1F))
                                : glm::vec3(1.F, 0.9F, 0.2F),
                         std::atan2(bullet.velocity.x, bullet.velocity.z), true);
-    if (bomb && bullet.evolved && glm::length(bullet.velocity) > 0.0001F) {
-      const glm::vec3 direction = glm::normalize(bullet.velocity);
-      const float age = 3.0F - bullet.life;
-      for (int i = 0; i < 4; ++i) {
-        const float phase = std::fmod(age * 3.2F + i * 0.31F, 1.0F);
-        const float behind = 0.12F + i * 0.09F + phase * 0.08F;
-        const float rise = 0.04F + std::fmod(age * 1.7F + i * 0.23F, 0.42F);
-        const glm::vec3 particlePosition = bullet.position - direction * behind +
-                                           glm::vec3(0.0F, rise, 0.0F);
-        const glm::vec3 particleColor = i % 2 == 0
-                                            ? glm::vec3(1.0F, 0.20F, 0.035F)
-                                            : glm::vec3(1.0F, 0.52F, 0.06F);
-        renderer_.drawProxy(shader, viewProjection, particlePosition,
-                            glm::vec3(0.035F + 0.008F * (i % 2)),
-                            particleColor);
-      }
-    }
   }
   for (const auto& blast : gameplay_.explosions())
     renderer_.drawBlast(shader, viewProjection, blast.position, blast.radius,

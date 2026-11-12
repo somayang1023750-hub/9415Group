@@ -29,7 +29,8 @@ class ParticleEffects {
   static constexpr std::size_t kLightLimit = 8;
   void reset();
   void update(float dt, const std::vector<ImpactEvent>& impacts,
-              const std::vector<BurningArea>& burningAreas);
+              const std::vector<BurningArea>& burningAreas,
+              const std::vector<Bullet>& bullets = {});
   [[nodiscard]] const std::vector<ParticleVisual>& visuals() const {
     return visuals_;
   }

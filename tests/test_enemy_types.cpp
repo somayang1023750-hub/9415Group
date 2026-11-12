@@ -111,6 +111,61 @@ TEST_CASE("Autonomous mixed batches follow level weights and respect live cap",
     }
   }
 }
+TEST_CASE("Automatic encounters keep an eight-block body safety zone",
+          "[enemies][spawn]") {
+  const auto idleWorld = emptyArena();
+  for (auto level : {ArenaLevel::Day, ArenaLevel::Night})
+    for (float elapsed : {0.F, 35.F, 65.F, 125.F})
+      for (bool allowFarEntry : {false, true}) {
+        Gameplay game(5);
+        game.reset(level);
+        for (int i = 0; i < static_cast<int>(elapsed * 10); ++i)
+          game.update(.1F, player, idleWorld);
+        craft::world::ArenaLayout layout;
+        // Even the 8.2-centre-distance entry clips the body safety zone.
+        layout.enemySpawnCandidates = {player, player + glm::vec3(4.5F, 0, 0),
+                                       player + glm::vec3(8.2F, 0, 0)};
+        if (allowFarEntry)
+          layout.enemySpawnCandidates.push_back({3.5F, 1.45F, 3.5F});
+        for (auto& entry : layout.enemySpawnCandidates) entry.y = 1.45F;
+        const ArenaWorld world(layout);
+        for (int i = 0; i < 210 && game.enemies().empty(); ++i)
+          game.update(.01F, player, world);
+        REQUIRE(game.enemies().empty() == !allowFarEntry);
+        for (const auto& enemy : game.enemies()) {
+          const auto p = enemyProfile(enemy.kind);
+          auto gap =
+              glm::max(glm::abs(enemy.position - player) - p.halfExtents -
+                           craft::gameplay::playerHalfExtents(),
+                       glm::vec3(0));
+          gap.y = 0;
+          // The newborn may move once in the same simulation step.
+          REQUIRE(glm::length(gap) >=
+                  Gameplay::spawnSafetyRadius() - p.speed * .01F - .001F);
+        }
+      }
+}
+
+TEST_CASE("Spawn safety follows the live player at an old entry",
+          "[enemies][spawn]") {
+  Gameplay game;
+  const auto idleWorld = emptyArena();
+  game.update(.01F, player, idleWorld);
+  craft::world::ArenaLayout layout;
+  const glm::vec3 movedPlayer(16.5F, craft::gameplay::kActorCentreY, 3.5F);
+  layout.enemySpawnCandidates = {
+      movedPlayer, movedPlayer + glm::vec3(4.5F, 0, 0), {28.5F, 1.45F, 28.5F}};
+  for (auto& entry : layout.enemySpawnCandidates) entry.y = 1.45F;
+  const ArenaWorld world(layout);
+  for (int i = 0; i < 210 && game.enemies().empty(); ++i)
+    game.update(.01F, movedPlayer, world);
+  REQUIRE(game.enemies().size() == 1);
+  REQUIRE(glm::length(game.enemies()[0].position -
+                      glm::vec3(28.5F, craft::gameplay::kActorCentreY, 28.5F)) <
+          .1F);
+  REQUIRE(game.stats().health == 5);
+}
+
 TEST_CASE("Typed spawns ground bodies and reject insufficient clearance",
           "[enemies]") {
   const auto world = emptyArena();

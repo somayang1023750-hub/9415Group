@@ -198,12 +198,23 @@ void Gameplay::update(float dt, const glm::vec3& player,
         for (int attempt = 0; attempt < 3 && !spawned; ++attempt) {
           const int index = (selected + attempt) % 3;
           if (weights[index] <= 0) continue;
-          for (std::size_t i = 0; i < candidates.size(); ++i)
-            if (spawnEnemy(candidates[(start + i) % candidates.size()], player,
-                           world, static_cast<EnemyKind>(index))) {
+          const auto kind = static_cast<EnemyKind>(index);
+          const auto extents =
+              enemyProfile(kind).halfExtents + playerHalfExtents();
+          for (std::size_t i = 0; i < candidates.size(); ++i) {
+            const auto& entry = candidates[(start + i) % candidates.size()];
+            auto gap =
+                glm::max(glm::abs(entry - player) - extents, glm::vec3(0));
+            gap.y = 0;
+            // Never relax the safety zone to fill a batch or to fit a different
+            // body. If no safe entry remains, skip this slot until the next
+            // tick.
+            if (glm::length(gap) < spawnSafetyRadius()) continue;
+            if (spawnEnemy(entry, player, world, kind)) {
               spawned = true;
               break;
             }
+          }
         }
         if (!spawned) break;
       }

@@ -10,17 +10,21 @@ Updated: 2026-11-12 (Australia/Sydney). Follow-up to mixed encounters in `e32b7c
 | Base Laser contact/reflection | Five branching cyan electrical arcs | 0.12-0.22 s |
 | Evolved Laser contact/reflection | Same electrical shape in red | 0.12-0.22 s |
 | Bomb detonation | Particles expand radially from the blast centre | 0.38-0.65 s |
-| Evolved Bomb detonation/residue | Red burst, followed by three rotating red ground-spiral arms | Ground vortex follows the 3 s burning area |
+| Evolved Bomb flight | Visible orange-red flame sparks trailing behind the projectile | Follows active flight |
+| Evolved Bomb detonation/residue | Retained outward burst; orange-red ground-fire particles themselves orbit and rise into a vortex | Fire follows the 3 s burning area |
 
-The existing evolved-Bomb flight trail and short explosion-radius ring remain.
-The ground vortex replaces the previous orange ground ring/rising sparks for
-burning areas. Effect shape, colour and motion distinguish the weapons without
+The short explosion-radius ring remains. The firebomb retains its warm flame
+trail, now using sixteen fading emissive sparks instead of four individually
+lit proxy cubes. Its original orange-red ground-fire appearance returns: the
+flame particles themselves rotate and rise around the impact centre. The former
+flat red spiral marks are removed; the vortex is the motion of the fire, not a
+second layer over it. Effect shape, colour and motion distinguish weapons without
 introducing separate weapon models. These visuals do not change damage, blast
 radius, upgrades, reflection rules, unlocks or independent cooldowns.
 
 At Night, impacts briefly cast weak warm/cyan/red local fill light. A burning
-area contributes a faint red light until it expires, fading over its final
-0.35 seconds. Impact flashes last 0.18 seconds (Bullet/Laser) or 0.5 seconds
+area contributes a faint warm orange-red light until it expires, fading over its
+final 0.35 seconds. Impact flashes last 0.18 seconds (Bullet/Laser) or 0.5 seconds
 (Bomb). Light radius is 1.3 blocks for Bullet, 1.6 for Laser, and at most four
 for Bomb/residue. The coloured particles also remain visible without ambient
 illumination. Day receives no additional scene lighting.
@@ -39,9 +43,13 @@ receive no added light.
   than a separate burst for every victim. Burning-area damage ticks do not emit
   repeated bursts. Existing `shots()`, `hits()` and `attacks()` contracts remain.
 - `ParticleEffects` owns CPU particle motion, independent seeded visual RNG and
-  derived local lights. It reads impacts and `burningAreas()` without changing
-  gameplay state. The maximum pools are 2,048 live burst segments, 4,096 total
-  particle visuals including vortices, and eight uploaded effect lights.
+  derived local lights. It reads impacts, `burningAreas()` and the live projectile
+  snapshot without changing gameplay state. The maximum pools are 2,048 live
+  burst segments, 4,096 total
+  particle visuals including fire/trails, and eight uploaded effect lights.
+  The optional fourth `update` argument is `bullets()`; callers omitting it keep
+  the original impact/residue interface. Trail samples stay behind the bomb and
+  never precede its launch history. Fire/trails consume no gameplay RNG.
 - `ArenaScene` consumes events exactly once when simulation advances. Upgrade,
   result and benchmark pauses freeze particles/lights. Restart and level changes
   clear all effect buffers. C can read `particleCount()` for diagnostics.
@@ -61,12 +69,13 @@ receive no added light.
 
 ## Verification
 
-- The full C++17 application builds in Linux Release; all 43 current tests pass.
-  Seven particle cases cover colour/expiry, radial motion, ground lifetime,
-  pause/reset, bounded pools, transient real wall events, visual RNG isolation
-  and bounded fading lights. Enemy tests cover Golem HP and typed orb rewards.
-- An OpenGL/Xvfb/Mesa harness renders all five effect styles using production
-  shaders in Day and Night. No GL errors were observed. It also checks blend/
+- The full C++17 application builds in Linux Release; all 46 current tests pass.
+  Eight particle cases cover colour/expiry, radial motion, rising/orbiting fire,
+  pause/reset, bounded pools, transient real wall events, visual RNG isolation,
+  warm trailing sparks/launch bounds and bounded fading lights. Enemy tests cover
+  Golem HP, typed orb rewards and automatic spawn safety.
+- An OpenGL/Xvfb/Mesa harness renders impacts, flame flight and rotating fire
+  using production shaders in Day and Night. No GL errors were observed. It also checks blend/
   depth-write restoration and real scene impacts, upgrade pause, restart and
   level-reset clearing. The harness is a temporary diagnostic, not a runtime
   dependency or committed test target.
@@ -77,6 +86,7 @@ receive no added light.
 
 Replay on Windows: wound the player, kill a Golem, inspect its larger drop,
 collect EXP, unlock/upgrade the weapons, and shoot enemies and cover in Night.
-Verify cyan/red electrical contacts, outward blasts, the three-second red vortex
+Verify cyan/red electrical contacts, outward blasts, the warm flight trail and
+the three-second vortex made from the rising ground-fire particles themselves,
 and small local light pools. Pause on an upgrade, then restart or switch level;
 effects should freeze during the pause and disappear on a reset.

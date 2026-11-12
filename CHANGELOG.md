@@ -4,6 +4,19 @@ This file records the changes made to the starter code and explain why the issue
 
 
 
+## 2026-11-12 — Member A: safer encounters and rotating firebomb flames
+
+- Added an eight-block player/enemy body-edge safety zone to all automatic spawn
+  attempts, including type/entry fallbacks. Unsafe batches skip without reducing
+  the distance. Existing explicit staging and map metadata contracts remain.
+- Retained the accepted radial Bomb burst and restored the evolved Bomb's warm
+  ground-fire appearance. The fire particles themselves orbit and rise into a
+  vortex instead of using a flat red spiral overlay.
+- Made the orange-red flight trail more visible with fading emissive particles
+  in the shared instanced batch. Pauses/reset and weak local Night glow remain.
+- Full application build, 46 tests and Day/Night production-shader render checks
+  passed. Updated A's handoff and Windows replay checklist.
+
 ## 2026-11-12 — Member A: Windows effect-light build fix
 
 - Included `<string>` explicitly in `ArenaRenderer.cpp` for `std::to_string`.

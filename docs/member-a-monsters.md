@@ -52,9 +52,13 @@ it, another currently eligible kind can fill the slot. No ineligible type is
 introduced as a fallback. Blocked entries can therefore affect the realised mix.
 
 Retained team rules: attempt a batch every 2 seconds, add one to batch size every
-30 seconds, cap at 24 live enemies, and require at least four blocks of player
-separation. No special off-screen spawn system or additional difficulty mode is
-introduced in this increment.
+30 seconds, and cap at 24 live enemies. Automatic encounters now require **eight
+blocks of horizontal clearance between player/enemy body edges**, using the live
+player position and selected type's footprint. This replaces the old automatic
+four-block centre-distance rule. Every entry/type fallback repeats the safety
+check. When all entries are unsafe/blocked, skip the slot and retry at the next
+batch without reducing the safe distance. Safety applies equally in Day/Night
+and near map edges; it is a distance guarantee, not off-screen spawning.
 
 ## Pursuit, collision and crowding
 
@@ -87,7 +91,9 @@ introduced in this increment.
 
 `Enemy.kind` selects `enemyProfile(kind)`. `spawnEnemy(..., kind)` defaults to
 Zombie for existing callers. That explicit API also permits staging any model
-for tests; autonomous spawning applies the level/time restrictions.
+for tests and retains its original four-block minimum. Autonomous spawning is
+the production path; it additionally enforces `spawnSafetyRadius()` (8), typed
+body-edge clearance and level/time restrictions before invoking the staging hook.
 
 Enemy centres differ: Zombie Y=1.32, Golem Y=1.442, Spider Y=1.212. All bases sit
 just above the floor at Y=1. Do not apply the old shared Zombie bounds to a new
@@ -110,12 +116,14 @@ adds colour at attribute 8 without changing these model attributes.
 ## Validation and remaining limits
 
 - Full application CMake Release build passed on Linux/GCC 14.2.
-- **13 enemy test cases passed**, covering exact ratios, time curves,
+- **15 enemy test cases passed**, covering exact ratios, time curves,
   weighted generation, typed clearance, damage/invulnerability, fractional HP,
   rewards, mixed crowd routing, wall-adjacent approach, pause/reset, both real
   maps' entry compatibility, the cap, water slowdown and corner-grazing recovery
-  across all three body types. Every movement step checks clearance and speed.
-- Current suite: **43 cases passed**. The earlier monster-only delivery recorded
+  across all three body types, automatic body-edge safety, near-entry rejection,
+  no-safe-entry skipping and live-player safety after moving onto an old entry.
+  Every navigation movement step checks clearance and speed.
+- Current suite: **46 cases passed**. The earlier monster-only delivery recorded
   28/34 passing: six tests still asserted obsolete weapon, speed and camera rules.
   The follow-up refreshes those expectations and adds real weapon-unlock,
   independent-cooldown, progression/evolution and particle coverage. Tests are

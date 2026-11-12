@@ -124,8 +124,13 @@ class Gameplay {
   void reset(world::ArenaLevel level);
   [[nodiscard]] world::ArenaLevel level() const { return level_; }
   [[nodiscard]] float elapsedSeconds() const { return elapsedSeconds_; }
+  // B: automatic encounters require this much X/Z clearance between the
+  // player and the selected enemy's body, including fallback spawn attempts.
+  static constexpr float spawnSafetyRadius() { return 8.F; }
   void update(float dt, const glm::vec3& player, const world::ArenaWorld& world,
               std::optional<glm::vec3> shotTarget = std::nullopt);
+  // Explicit staging hook retains its four-block minimum for existing callers.
+  // Normal encounters additionally enforce the body safety zone in update().
   bool spawnEnemy(const glm::vec3& position, const glm::vec3& player,
                   const world::ArenaWorld& world,
                   EnemyKind kind = EnemyKind::Zombie);

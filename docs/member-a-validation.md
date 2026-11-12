@@ -7,10 +7,11 @@ Updated: 2026-11-12 (Australia/Sydney). Current follow-up builds on `e32b7cf`.
 | Check | Recorded outcome | Limit |
 | --- | --- | --- |
 | Full C++17 application build | Passed, Linux Release / GCC 14.2 | Not a Windows or CSE result |
-| Current regression suite | 43 cases passed: 17 gameplay, 13 enemy, seven particle, five world, one math | CPU checks do not replace visual/balance acceptance |
+| Current regression suite | 46 cases passed: 17 gameplay, 15 enemy, eight particle, five world, one math | CPU checks do not replace visual/balance acceptance |
+| Automatic spawn safety | Eight-block body-edge exclusion tested in Day/Night, including unsafe fallbacks, no safe entries and moving onto an old entry | Explicit fixture staging retains the old four-block minimum |
 | Corner-grazing regression | All three kinds and multiple edge offsets reach the target; every step checks clearance and speed | Crowded lanes may still queue physically |
 | Weapon integration | Real unlocks, independent cooldowns, four upgrades and evolution per weapon passed | Current team rules retained |
-| Particle/light integration | Production OpenGL shaders render five styles in Day/Night without GL errors; real impacts, pause/reset and blend/depth-write restoration passed | Temporary Xvfb/Mesa harness, not Windows hardware |
+| Particle/light integration | Production OpenGL shaders render impacts, fire trails and rotating ground fire in Day/Night without GL errors; real impacts, pause/reset and blend/depth-write restoration passed | Temporary Xvfb/Mesa harness, not Windows hardware |
 | Local lighting comparison | Day identical with/without effect fill; Night changes near impacts; distant control region identical | Pixel comparison, not shadow or performance evidence |
 | CLI smoke | 240 measured frames completed | Static software-render smoke, not an instancing comparison |
 | Windows/CSE and full-run acceptance | Current follow-up still needs replay | Earlier Windows feedback applies to the earlier gameplay version |
@@ -101,6 +102,7 @@ that every row was independently executed on every platform.
 | Camera | Walk across the arena and towards its edge | Player stays centred, local zoom stays fixed, distant areas are off screen |
 | Enemy chase | Kite all three kinds around cover, narrow gaps and corners | Typed speeds/bounds apply; enemies replan without permanent corner stalls or wall penetration; crowded lanes may queue |
 | Mixed encounters | Play Day beyond 120 s and Night beyond 120 s | Day ramps to 70:30 Zombie:Golem; Night to 60:15:25 Zombie:Golem:Spider; time excludes pauses |
+| Safe spawning | Stand on/near a map entry and cross another entry before the next batch | New enemies appear outside the eight-block body-edge safe zone; no unsafe forced spawn when entries are blocked |
 | Bullet | Hold the left mouse button toward a fresh red enemy | Fires at its own cooldown; two base hits kill; cover stops the projectile |
 | EXP | Approach a green drop | Attraction starts within four blocks, pickup adds EXP |
 | Upgrade | Reach the threshold, preferably while wounded | Clear English paused modal; up to two random upgrade, evolution or weapon-unlock choices; timer/enemies stop |
@@ -108,7 +110,7 @@ that every row was independently executed on every platform.
 | Laser | Unlock Laser; align enemies and shoot near cover | Base laser stops at first enemy and reflects once; evolved red laser pierces until first bounce, then damages and stops on the next enemy |
 | Bomb | Unlock Bomb; aim at enemies or a nearby wall | Base shot deals 2 damage in a 1.75-block radius; at evolution red firebomb leaves sparks and its burning area lasts 3 seconds, dealing 2 damage each second |
 | Golem reward | Defeat a Golem, then compare its drop to a Zombie's | Golem has 14 HP; its drop is about 1.8x the width and grants 2 EXP |
-| Hit styles | Hit enemies and cover with all weapons | Short Bullet debris; cyan Laser electricity, red after evolution; outward Bomb burst; evolved Bomb red ground vortex |
+| Hit styles | Hit enemies and cover with all weapons | Short Bullet debris; cyan Laser electricity, red after evolution; outward Bomb burst; evolved Bomb keeps warm flight fire and its ground-fire particles themselves rotate/rise into a vortex |
 | Night glow | Repeat impacts in Night, then pause/reset/switch level | Small coloured fill lights near impacts/residue; distant Night stays dark; pause freezes effects and resets clear them |
 | Defeat | Allow contact damage until HP reaches zero | Centred DEFEAT modal with run statistics and Play again |
 | Victory | Survive 180 simulation seconds | Centred VICTORY modal; upgrade pauses do not consume survival time |

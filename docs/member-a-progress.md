@@ -18,11 +18,16 @@ report/video evidence remain team follow-up work.
 | M3 / Week 9 | Distinct hit particles and integration evidence | Implemented and Linux-tested; final platform/report acceptance remains |
 
 The latest follow-up raises Golem health to 14, fixes a reproduced corner-grazing
-stall, enlarges Golem drops, adds weapon impacts/red ground vortices and weak
+stall, enlarges Golem drops, adds weapon impacts/rotating ground fire and weak
 Night fill lights, and refreshes obsolete regression assertions. It preserves
 teammate weapon progression, individual cooldowns, layouts, instancing and BRDF/
 normal-map interfaces. Exact details live in [mixed enemy encounters](member-a-monsters.md)
 and [weapon effects](member-a-effects.md).
+
+The latest playtest revision adds an eight-block body-edge safety zone to every
+automatic spawn attempt. It also retains the firebomb's warm flame trail and
+makes the original ground-fire particles themselves rotate/rise into a vortex.
+The accepted radial explosion burst is retained.
 
 ## Gameplay delivered by A
 
@@ -34,9 +39,12 @@ and [weapon effects](member-a-effects.md).
   ImGui input capture suppresses gameplay input.
 - Swept projectile collision prevents tunnelling. Wall contacts win collision
   ties. Each projectile keeps its launch-time damage, speed, weapon and evolution.
-- Typed spawning uses B's live candidates, four-block minimum player separation,
+- Typed spawning uses B's live candidates, an eight-block body-edge safety zone,
   body-specific clearance, a 24-live-enemy cap and two-second spawn batches.
   Batch size gains one every 30 active seconds.
+  Unsafe candidates remain rejected during type/entry fallback; a batch is
+  skipped when no safe entry exists. The explicit staging API retains its old
+  four-block minimum for deterministic fixtures and existing callers.
 - Enemy chase uses persistent four-neighbour grid waypoints, continuous swept
   world clearance, live actor separation and front-first movement. Current-cell
   connection and no-progress recovery handle off-centre corner grazing. Narrow
@@ -81,7 +89,8 @@ reaches enemies behind cover within the radius and does not hurt the player.
 Bombs also detonate at their three-second lifetime limit.
 
 A's new hit styles are short Bullet debris, cyan/red Laser electricity, radial
-Bomb bursts and evolved Bomb red ground vortices. Night adds bounded, weak local
+Bomb bursts and evolved Bomb orange-red fire particles rotating into ground
+vortices. The warm flight trail uses the same emissive particle batch. Night adds bounded, weak local
 fill lights; Day lighting is unchanged. Effects use independent RNG and a single
 particle instanced draw, without modifying combat or spawn randomness.
 
@@ -124,14 +133,14 @@ screen, textured player, WASD, ImGui lifecycle and benchmark also predate A.
 
 ## Verification and remaining acceptance
 
-Current Linux C++17 Release application build and all **43 regression cases**
+Current Linux C++17 Release application build and all **46 regression cases**
 pass. Coverage includes three typed bodies, encounter ramps, corner recovery,
-real unlocks and independent cooldowns, all weapon upgrades/evolutions, particles,
+automatic spawn safety, real unlocks and independent cooldowns, all weapon upgrades/evolutions, particles,
 lights, reset and pause. Six earlier failures came from tests retaining obsolete
 rules, detailed in [validation and replay](member-a-validation.md). No test is
 disabled and no weapon behaviour was reverted to satisfy an old assertion.
 
-Production-shader Day/Night render checks cover all five effect styles, GL state,
+Production-shader Day/Night render checks cover impacts, flame trails and rotating ground fire, GL state,
 real impacts, upgrade pause and reset. Pixel comparisons confirm Night fill is
 local and does not change Day or a distant control region. The CLI 240-frame
 software-render smoke is a runtime check, not comparative hardware evidence.

@@ -82,7 +82,8 @@ void ParticleEffects::emit(const ImpactEvent& hit) {
   }
 }
 void ParticleEffects::update(float dt, const std::vector<ImpactEvent>& impacts,
-                             const std::vector<BurningArea>& areas) {
+                             const std::vector<BurningArea>& areas,
+                             const std::vector<Bullet>& bullets) {
   if (!std::isfinite(dt) || dt <= 0) return;
   dt = std::min(dt, .1F);
   for (auto& flash : flashes_) flash.age += dt;
@@ -109,7 +110,8 @@ void ParticleEffects::update(float dt, const std::vector<ImpactEvent>& impacts,
   }
   visuals_.clear();
   visuals_.reserve(
-      std::min(kVisualLimit, particles_.size() + areas.size() * 48));
+      std::min(kVisualLimit,
+               particles_.size() + areas.size() * 48 + bullets.size() * 16));
   for (const auto& p : particles_) {
     auto v = p.visual;
     const float fade = 1 - p.age / p.lifetime;
@@ -118,24 +120,53 @@ void ParticleEffects::update(float dt, const std::vector<ImpactEvent>& impacts,
         fade * (p.electric ? .55F + .45F * std::abs(std::sin(p.age * 95)) : 1);
     visuals_.push_back(v);
   }
-  // Three red spiral arms remain on the ground for exactly the active
-  // burning area's three-second lifetime. Damage continues to belong to
-  // Gameplay.
+  // The original orange/red rising fire particles themselves spiral around
+  // the impact centre. These replace the flat red glyph; no overlay is added.
+  // Damage and the three-second lifetime continue to belong to Gameplay.
   for (const auto& area : areas) {
     if (area.age >= 3 || area.radius <= 0) continue;
     for (int i = 0; i < 48 && visuals_.size() < kVisualLimit; ++i) {
-      const float r =
-          .10F + .9F * std::fmod((i / 3) / 16.F + area.age * .23F, 1.F);
-      const float a = (i % 3) * 2 * pi / 3 + r * 7.F - area.age * 4.F;
+      const float phase = std::fmod((i / 3) / 16.F + area.age * .45F, 1.F);
+      const float r = .12F + .84F * phase;
+      const float a = (i % 3) * 2 * pi / 3 + r * 6.F - area.age * 5.F;
       const float radius = area.radius * r;
       const float fade = std::min(1.F, (3.F - area.age) / .35F);
+      const float flicker = .5F + .5F * std::sin(i * 1.7F + area.age * 17.F);
       const glm::vec3 pos(area.position.x + std::cos(a) * radius,
-                          1.045F + .018F * std::sin(i + area.age * 8),
+                          1.10F + .42F * phase + .035F * flicker,
                           area.position.z + std::sin(a) * radius);
+      visuals_.push_back(
+          {pos,
+           {.035F + .018F * flicker, .055F + .04F * flicker, .035F},
+           {0, 1, 0},
+           {1, .16F + .52F * (1 - phase), .025F, .9F * fade}});
+    }
+    if (visuals_.size() >= kVisualLimit) break;
+  }
+  // C: retain the firebomb's warm flame trail in the same emissive particle
+  // batch. Reconstruct short-lived trailing sparks from straight-line flight;
+  // samples never precede launch, and pauses freeze the supplied projectile
+  // age.
+  for (const auto& bullet : bullets) {
+    const float speed = glm::length(bullet.velocity);
+    if (bullet.weapon != Weapon::Bomb || !bullet.evolved || speed < .001F)
+      continue;
+    const float age = std::max(0.F, 3.F - bullet.life);
+    const auto direction = bullet.velocity / speed;
+    const auto side = glm::cross(direction, glm::vec3(0, 1, 0));
+    for (int i = 0; i < 16 && visuals_.size() < kVisualLimit; ++i) {
+      const float t = (i + 1) / 16.F;
+      const float behind = .10F + t * speed * .09F;
+      if (behind > age * speed) break;
+      const float flicker = .5F + .5F * std::sin(age * 24.F - i * 1.9F);
+      const auto pos = bullet.position - direction * behind +
+                       side * (std::sin(age * 19.F - i) * .035F) +
+                       glm::vec3(0, .035F + t * .22F, 0);
+      const float size = .035F + .035F * (1 - t);
       visuals_.push_back({pos,
-                          {.018F, .065F, .018F},
-                          {-std::sin(a), 0, std::cos(a)},
-                          {1, .025F, .07F, .8F * fade}});
+                          {size, size * (1.2F + flicker), size},
+                          {0, 1, 0},
+                          {1, .18F + .52F * flicker, .035F, .95F - t * .7F}});
     }
     if (visuals_.size() >= kVisualLimit) break;
   }
@@ -144,7 +175,7 @@ void ParticleEffects::update(float dt, const std::vector<ImpactEvent>& impacts,
     if (lights_.size() >= kLightLimit) break;
     if (area.age < 3 && area.radius > 0)
       lights_.push_back({area.position + glm::vec3(0, .25F, 0),
-                         {1, .025F, .055F},
+                         {1, .16F, .025F},
                          std::min(4.F, area.radius + .4F),
                          .12F * std::min(1.F, (3 - area.age) / .35F)});
   }
