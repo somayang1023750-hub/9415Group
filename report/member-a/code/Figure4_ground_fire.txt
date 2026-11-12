@@ -1,0 +1,24 @@
+SOURCE: src/core/gameplay/ParticleEffects.cpp
+Open the original file in Visual Studio for a syntax-highlighted screenshot.
+
+ 121:   // Preserve the pre-effects fire: ten .035 cubes, the original two colours,
+ 122:   // four orbital radii and rising cycle. Only rotation changes (.8 -> 3.2
+ 123:   // rad/s). Keep these lit like the original proxies; damage/lifetime stay in
+ 124:   // Gameplay.
+ 125:   groundFire_.clear();
+ 126:   for (const auto& area : areas) {
+ 127:     if (area.age >= 3 || area.radius <= 0) continue;
+ 128:     for (int i = 0;
+ 129:          i < 10 && visuals_.size() + groundFire_.size() < kVisualLimit; ++i) {
+ 130:       const float angle = i * 2.39996323F + area.age * 3.2F;
+ 131:       const float radialDistance = area.radius * (.22F + .16F * (i % 4));
+ 132:       const float rise = .08F + std::fmod(area.age * 1.8F + i * .27F, .72F);
+ 133:       const glm::vec3 pos(area.position.x + std::cos(angle) * radialDistance,
+ 134:                           1.08F + rise,
+ 135:                           area.position.z + std::sin(angle) * radialDistance);
+ 136:       const glm::vec4 color = i % 2 == 0 ? glm::vec4(1, .18F, .025F, 1)
+ 137:                                          : glm::vec4(1, .48F, .045F, 1);
+ 138:       groundFire_.push_back({pos, glm::vec3(.035F), {0, 1, 0}, color});
+ 139:     }
+ 140:     if (visuals_.size() + groundFire_.size() >= kVisualLimit) break;
+ 141:   }

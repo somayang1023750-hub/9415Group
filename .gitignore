@@ -6,3 +6,5 @@ ignore/
 imgui.ini
 .DS_Store
 _deps/
+member-a-captures/
+build-report/

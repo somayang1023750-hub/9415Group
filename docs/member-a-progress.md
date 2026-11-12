@@ -175,3 +175,10 @@ team. Build steps and replay actions are in the linked validation guide.
 
 The present follow-up supplies the Golem rebalance, corner fix, hit effects,
 Night glow, larger drops and refreshed regression coverage described above.
+
+## Report capture workspace
+
+See [report/member-a](../report/member-a/README.md) for the optional production-source
+showcase, revised Member A Word report and numbered code excerpts for Figures A1–A5.
+It stages evidence capture; it is not gameplay or benchmark evidence. The original
+trail now uses a helper shared by ArenaScene and the showcase, with unchanged formulas.

@@ -1,0 +1,62 @@
+SOURCE: src/core/gameplay/ParticleEffects.cpp
+Open the original file in Visual Studio for a syntax-highlighted screenshot.
+
+  26: void ParticleEffects::emit(const ImpactEvent& hit) {
+  27:   if (flashes_.size() >= kLightLimit) flashes_.erase(flashes_.begin());
+  28:   const bool bomb = hit.weapon == Weapon::Bomb,
+  29:              laser = hit.weapon == Weapon::Laser;
+  30:   const glm::vec3 color = hit.evolved ? glm::vec3(1, .025F, .06F)
+  31:                           : laser     ? glm::vec3(.02F, .7F, 1)
+  32:                           : bomb      ? glm::vec3(1, .3F, .04F)
+  33:                                       : glm::vec3(1, .8F, .45F);
+  34:   flashes_.push_back({{hit.position + glm::vec3(0, .2F, 0), color,
+  35:                        bomb    ? std::min(4.F, hit.radius + 1.F)
+  36:                        : laser ? 1.6F
+  37:                                : 1.3F,
+  38:                        bomb    ? .24F
+  39:                        : laser ? .14F
+  40:                                : .10F},
+  41:                       0,
+  42:                       bomb ? .5F : .18F});
+  43:   if (hit.weapon == Weapon::Bullet) {
+  44:     for (int i = 0; i < 14; ++i) {
+  45:       const float a = random(0, 2 * pi), speed = random(1.4F, 3.8F);
+  46:       const auto size = glm::vec3(random(.017F, .035F));
+  47:       add({hit.position, size, {0, 1, 0}, {1.F, random(.6F, 1.F), .35F, 1}},
+  48:           {std::cos(a) * speed, random(.4F, 2.4F), std::sin(a) * speed},
+  49:           random(.16F, .28F), 12);
+  50:     }
+  51:   } else if (hit.weapon == Weapon::Laser) {
+  52:     const glm::vec4 color =
+  53:         hit.evolved ? glm::vec4(1, .04F, .12F, 1) : glm::vec4(.08F, .85F, 1, 1);
+  54:     for (int branch = 0; branch < 5; ++branch) {
+  55:       auto from = hit.position;
+  56:       const float a = random(0, 2 * pi);
+  57:       const glm::vec3 outward(std::cos(a), random(-.3F, .6F), std::sin(a));
+  58:       for (int segment = 0; segment < 5; ++segment) {
+  59:         auto to = from + outward * .13F +
+  60:                   glm::vec3(random(-.045F, .045F), random(-.09F, .09F),
+  61:                             random(-.045F, .045F));
+  62:         to.y = std::max(1.035F, to.y);
+  63:         const auto delta = to - from;
+  64:         add({(to + from) * .5F,
+  65:              {.009F, glm::length(delta) * .5F, .009F},
+  66:              glm::normalize(delta),
+  67:              color},
+  68:             outward * .25F, random(.12F, .22F), 0, true);
+  69:         from = to;
+  70:       }
+  71:     }
+  72:   } else {
+  73:     for (int i = 0; i < 64; ++i) {
+  74:       const float a = (i + random(-.35F, .35F)) * 2 * pi / 64;
+  75:       const float speed = std::max(.5F, hit.radius) * random(1.4F, 2.2F);
+  76:       const glm::vec4 color = hit.evolved
+  77:                                   ? glm::vec4(1, .06F, .09F, 1)
+  78:                                   : glm::vec4(1, random(.25F, .75F), .06F, 1);
+  79:       add({hit.position, glm::vec3(random(.025F, .055F)), {0, 1, 0}, color},
+  80:           {std::cos(a) * speed, random(.4F, 2.F), std::sin(a) * speed},
+  81:           random(.38F, .65F), 5);
+  82:     }
+  83:   }
+  84: }

@@ -1,0 +1,18 @@
+按本次指定的五幅图拍摄，文稿使用 Figure A1–A5，避免和其他组员已有 Figure 1、2 重号。
+
+1. 三种敌人模型贴图：MemberAShowcase 的 Figure 1，三种模型并排，原版贴图和相对尺寸。
+   可调整 Model yaw，H 隐藏控制面板，F12 保存 PNG。
+2. UI：F2，然后分别 U（升级）、V（胜利）、D（失败）。这是实际 Gameplay 状态与生产 UI。
+   每种界面各截一张后拼图；键盘在弹窗打开时也可切换。H 可隐藏展示控制面板。
+3. 命中：Figure 3，点击 Freeze hit for Figure 3，冻结真实命中粒子的早期帧。
+   截取普通子弹碎屑、青色激光、进化红色激光。附 code/Figure3_impact_generation.txt 所指生产代码截图。
+4. 炸弹火焰旋转：Figure 4，Replay effects 回放。开始为原版四火星拖尾，之后为中心扩散及三秒旋转火焰。
+   Pause 和 Step 0.02 s 可抓取不同时间的真实粒子状态。附 code/Figure4_ground_fire.txt 所指代码。
+   可将拖尾、扩散、两个地表火焰时刻与实现代码拼成 Figure A4。
+5. 寻敌逻辑：截取 code/Figure5_committed_route.txt 和 Figure5_wait_and_recovery.txt 所指原文件。
+   展示程序不伪造 AI；行为截图应来自正常游戏中的队列等待及恢复追赶。
+
+F1–F4 切换展示页；H 隐藏/显示面板；F12 将当前帧保存到启动目录下 member-a-captures/；ESC 退出。
+程序只改变布置、镜头和回放时钟，不改变游戏中的模型/粒子参数。请不要将展示程序 FPS 作为性能证据。
+Word 的 particle 部分已整体重写；其他组员的章节保留。Member A 姓名和 zID 仍需补填。
+代码改动后运行 py -3 report/member-a/export_code.py 更新代码摘录。摘录是文档，不参与编译。

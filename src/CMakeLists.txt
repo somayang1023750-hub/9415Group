@@ -83,3 +83,17 @@ add_custom_command(TARGET Craft POST_BUILD
             "$<TARGET_FILE_DIR:Craft>/assets"
     COMMENT "Copying runtime assets"
 )
+
+# Optional report capture tool. Production models/effects are shared, not copied.
+option(CRAFT_BUILD_MEMBER_A_SHOWCASE "Build Member A report capture program" OFF)
+if(CRAFT_BUILD_MEMBER_A_SHOWCASE)
+  add_executable(MemberAShowcase
+    ${PROJECT_SOURCE_DIR}/report/member-a/main.cpp
+    ${CRAFT_APP_SOURCES} ${IMGUI_SOURCES})
+  target_include_directories(MemberAShowcase PRIVATE ${IMGUI_DIR} ${IMGUI_DIR}/backends)
+  target_link_libraries(MemberAShowcase PRIVATE craft_core glfw stb::headers)
+  set_target_properties(MemberAShowcase PROPERTIES RUNTIME_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR})
+  add_custom_command(TARGET MemberAShowcase POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_directory "${PROJECT_SOURCE_DIR}/assets"
+      "$<TARGET_FILE_DIR:MemberAShowcase>/assets")
+endif()

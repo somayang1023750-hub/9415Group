@@ -1,0 +1,24 @@
+SOURCE: src/graphics/ArenaRenderer.cpp
+Open the original file in Visual Studio for a syntax-highlighted screenshot.
+
+ 974: void ArenaRenderer::drawFirebombTrail(const Shader& shader, const glm::mat4& viewProjection,
+ 975:                                      const gameplay::Bullet& bullet) const {
+ 976:     if (bullet.weapon == gameplay::Weapon::Bomb && bullet.evolved && glm::length(bullet.velocity) > 0.0001F) {
+ 977:       const glm::vec3 direction = glm::normalize(bullet.velocity);
+ 978:       const float age = 3.0F - bullet.life;
+ 979:       for (int i = 0; i < 4; ++i) {
+ 980:         const float phase = std::fmod(age * 3.2F + i * 0.31F, 1.0F);
+ 981:         const float behind = 0.12F + i * 0.09F + phase * 0.08F;
+ 982:         const float rise = 0.04F + std::fmod(age * 1.7F + i * 0.23F, 0.42F);
+ 983:         const glm::vec3 particlePosition = bullet.position - direction * behind +
+ 984:                                            glm::vec3(0.0F, rise, 0.0F);
+ 985:         const glm::vec3 particleColor = i % 2 == 0
+ 986:                                             ? glm::vec3(1.0F, 0.20F, 0.035F)
+ 987:                                             : glm::vec3(1.0F, 0.52F, 0.06F);
+ 988:         drawProxy(shader, viewProjection, particlePosition,
+ 989:                             glm::vec3(0.035F + 0.008F * (i % 2)),
+ 990:                             particleColor);
+ 991:       }
+ 992:     }
+ 993: }
+ 994: 

@@ -971,4 +971,25 @@ int ArenaRenderer::worldDrawCallCount() const noexcept {
   return worldDrawCallCount_;
 }
 
+void ArenaRenderer::drawFirebombTrail(const Shader& shader, const glm::mat4& viewProjection,
+                                     const gameplay::Bullet& bullet) const {
+    if (bullet.weapon == gameplay::Weapon::Bomb && bullet.evolved && glm::length(bullet.velocity) > 0.0001F) {
+      const glm::vec3 direction = glm::normalize(bullet.velocity);
+      const float age = 3.0F - bullet.life;
+      for (int i = 0; i < 4; ++i) {
+        const float phase = std::fmod(age * 3.2F + i * 0.31F, 1.0F);
+        const float behind = 0.12F + i * 0.09F + phase * 0.08F;
+        const float rise = 0.04F + std::fmod(age * 1.7F + i * 0.23F, 0.42F);
+        const glm::vec3 particlePosition = bullet.position - direction * behind +
+                                           glm::vec3(0.0F, rise, 0.0F);
+        const glm::vec3 particleColor = i % 2 == 0
+                                            ? glm::vec3(1.0F, 0.20F, 0.035F)
+                                            : glm::vec3(1.0F, 0.52F, 0.06F);
+        drawProxy(shader, viewProjection, particlePosition,
+                            glm::vec3(0.035F + 0.008F * (i % 2)),
+                            particleColor);
+      }
+    }
+}
+
 }  // namespace craft::graphics

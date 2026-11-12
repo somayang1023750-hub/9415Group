@@ -4,6 +4,17 @@ This file records the changes made to the starter code and explain why the issue
 
 
 
+## 2026-11-12 — Member A: report capture workspace
+
+- Added optional MemberAShowcase target and report/member-a with the revised Word
+  report, screenshot instructions, and exports of real source for Figures A1–A5.
+- Staged the production models side by side, real upgrade/victory/defeat UI,
+  Bullet/Laser hits and the Bomb flight/blast/rotating fire sequence. Added PNG
+  capture, pause and frame stepping; no substitute models or particle formulas.
+- Extracted the original four-spark trail into a helper shared by ArenaScene and
+  the showcase, preserving its formulas. Normal game and showcase builds, all
+  48 tests and an OpenGL showcase smoke pass on Linux; Windows replay remains.
+
 ## 2026-11-12 — Member A: six-block spawn safety and stable crowd pursuit
 
 - Reduced automatic spawn exclusion from eight to six blocks of body-edge

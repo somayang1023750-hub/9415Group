@@ -73,6 +73,9 @@ class ArenaRenderer {
                  const glm::vec3& position, const glm::vec3& halfExtents,
                  const glm::vec3& color, float yawRadians = 0,
                  bool metallic = false) const;
+  // Shared original four-spark trail: used by gameplay and report showcase.
+  void drawFirebombTrail(const Shader& shader, const glm::mat4& viewProjection,
+                         const gameplay::Bullet& bullet) const;
   void drawBlast(const Shader& shader, const glm::mat4& viewProjection,
                  const glm::vec3& position, float radius, float age) const;
 
