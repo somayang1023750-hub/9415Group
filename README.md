@@ -6,7 +6,7 @@ The codebase is the starter code for the COMP3421/COMP9415 26T3 Computer Graphic
 
 The current gameplay build opens an OpenGL 3.3 window, shows a start screen, and then renders a 32 × 32 × 32 block volume with a bounded arena floor, low perimeter walls, two switchable layouts, a textured six-part player, a six-part Minecraft-style zombie, and an angled local follow camera. WASD movement is relative to the camera and stops at solid blocks; the player's arms and legs swing during movement, while the zombie's legs swing and its arms stay extended forward. The project does **not** yet provide:
 
-- M3 weapon-hit particle effects or final gameplay balance.
+- Final gameplay balance and complete cross-platform acceptance evidence.
 - Glowing EXP sphere visuals or layered player-skin overlays.
 - Chunk streaming or indexed meshing.
 
@@ -18,7 +18,7 @@ loaded from `assets/textures/zombie.png`; when that file is absent, the model
 uses a flat green fallback. The gameplay panel uses Member C's temporary HUD
 and modal UI. The Game menu switches between the seeded Day map and the Night
 barricades. Member A accepted the earlier gameplay baseline; the latest weapon
-progression changes await review. Final team integration and CSE validation
+progression and particle changes need current Windows replay. Final team integration and CSE validation
 remain outstanding. See [Member A progress](docs/member-a-progress.md) for the current
 scope and source attribution, [Member C progress](docs/member-c-progress.md) for
 models, animation, UI and integration, and the
@@ -54,7 +54,7 @@ src/app/            ArenaScene, FollowCamera, PlayerController, AppUi, and bench
 src/core/           Asset lookup and CPU-only gameplay/geometry/aim systems
 src/graphics/       ArenaRenderer, window, shader, texture, and text renderer
 src/world/          32 x 32 x 32 block grid and collision queries
-tests/              Optional Catch2/CTest suite (21 current cases)
+tests/              Optional Catch2/CTest suite (43 current cases)
 ```
 
 Implementation files under the existing source directories are automatically
@@ -90,7 +90,7 @@ during a benchmark, which reports the selected level and normal-map setting.
 See [Member B progress](docs/member-b-progress.md) for rendering details,
 screenshots and validation.
 
-## Member A - M2 gameplay and progression
+## Member A - gameplay, mixed enemies and hit effects
 
 After Enter, use WASD and hold the left mouse button to fire all unlocked weapons
 toward the cursor. Each weapon has its own firing interval. Kills drop green EXP
@@ -119,7 +119,7 @@ into a firebomb with orange-red flight sparks and a three-second burning area
 that deals 2 damage each second within its radius.
 
 Enemies use typed body clearance and persistent waypoints to reroute. Zombies
-have 4 HP, 1 damage, speed 3.3 and EXP 1; larger Golems have 8 HP, 2 damage,
+have 4 HP, 1 damage, speed 3.3 and EXP 1; larger Golems have 14 HP, 2 damage,
 speed 2.1 and EXP 2; smaller Spiders have exactly 3.4 HP, 1 damage, speed 4.5
 and EXP 1. Player speed is 5. Day Golems ramp in after 60 seconds to a 70:30
 Zombie/Golem mix at 120 seconds. Night Golems ramp after 30 seconds and Spiders
@@ -130,6 +130,17 @@ seconds opens a clear English DEFEAT/VICTORY dialog with Play again. The status
 panel shows HP, time, EXP, level and weapon progression. Restart resets player and gameplay
 on the current map. Selecting Day or Night starts a fresh run on that map.
 
+Golem EXP drops are about 1.8 times the width of ordinary drops, still granting
+2 EXP. Continuous route checks and safe current-cell re-centring prevent the
+reproduced corner-grazing stall without teleporting enemies through cover.
+
+Weapon impacts now emit short Bullet debris, cyan Laser electricity (red after
+evolution) and outward Bomb bursts. Evolved Bomb burning areas show rotating red
+ground vortices for their three-second lifetime. Night impacts and residue add
+weak coloured local light, leaving distant darkness and Day lighting unchanged.
+Particles pause with gameplay, clear on restart/level change, and render in one
+instanced batch. See [weapon effects and interfaces](docs/member-a-effects.md).
+
 `core/gameplay/Gameplay` is CPU-only. `ArenaScene::gameplay()` supplies read-only
 actor snapshots, stats and per-frame shot/hit events for C's HUD, animation and
 instancing work. `ArenaScene` tracks each enemy's render-only walk phase, yaw,
@@ -137,8 +148,10 @@ and arm-raise animation by stable enemy ID. `Gameplay::attacks()` reports each
 proximity-damage attack for presentation consumers and clears it on the next
 simulation update.
 Interface comments and [A's handoff](docs/member-a-progress.md)
-describe coordinate conventions and integration boundaries. No M3 particles or
-separate weapon models are included.
+describe coordinate conventions and integration boundaries. Weapon styles use
+particles rather than separate weapon models. All 43 current tests pass; the
+[validation guide](docs/member-a-validation.md) explains the six obsolete test
+cases refreshed in this follow-up.
 
 ## Build with CMake and test with CTest directly
 

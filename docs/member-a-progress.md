@@ -1,273 +1,157 @@
-# Member A progress - Milestone 2 gameplay increment
+# Member A progress - gameplay, enemies and weapon effects
 
-Updated: 2026-11-12 (Australia/Sydney).
+Updated: 2026-11-12 (Australia/Sydney). Current integration builds on team
+baseline `8c1a587` and mixed-enemy delivery `e32b7cf`.
 
-Status (2026-11-12): three typed monsters and Day/Night encounter ramps are
-implemented on team baseline `8c1a587`. See [mixed enemy encounters](member-a-monsters.md)
-for exact profiles, generation curves, rendering/navigation interfaces and
-current validation. This latest monster increment does not complete weapon hit
-particles or refresh the team's six pre-existing failing assertions.
+## Current scope
 
-The older sections below describe the baseline weapon/gameplay integration;
-where they describe only one enemy kind, the linked monster specification is
-the current source of truth.
+ProjectPlan.pdf assigns Member A core gameplay, game state and weapon-hit
+particles. A's gameplay systems, all three requested enemy types and weapon-hit
+styles are implemented. This does not claim final team submission readiness:
+Windows acceptance of this follow-up, CSE/VLAB validation, final balance and
+report/video evidence remain team follow-up work.
 
-## Scope and milestone boundary
-
-ProjectPlan.pdf assigns A gameplay, progression and game state. This M2 increment
-fills A's missing M1 combat prerequisites and implements EXP/weapon selection on
-B's current deterministic M1 map. It does not claim the team's whole M2 is done.
-
-| Milestone | A deliverable | Current status |
+| Plan milestone | A deliverable | Status |
 | --- | --- | --- |
-| M1 / Week 7 | Movement, one enemy type, shooting and collision | Implemented; supplied player movement retained and tested |
-| M2 / Week 8 | EXP attraction, level-up/weapon selection, gameplay state | Implemented with temporary English HUD and modal menus |
-| M3 / Week 9 | Weapon-hit particles, final integration and report evidence | Pending; shot/hit/blast interfaces supplied |
+| M1 / Week 7 | Movement, shooting, enemies and collision | Implemented; supplied movement retained |
+| M2 / Week 8 | EXP attraction, random upgrades and game state | Implemented; English selection/result menus and full healing |
+| M3 / Week 9 | Distinct hit particles and integration evidence | Implemented and Linux-tested; final platform/report acceptance remains |
 
-B still owns Day/Night maps and lighting; C owns final models/animation,
-HUD/menu presentation, instancing and comparative benchmark evidence. Camera and
-actor proportions were adjusted in this A integration at Member A's request;
-C retains the camera/presentation handoff for later integration. Coloured
-projectiles and the blast-radius ring are functional proxies, not M3 particles.
+The latest follow-up raises Golem health to 14, fixes a reproduced corner-grazing
+stall, enlarges Golem drops, adds weapon impacts/red ground vortices and weak
+Night fill lights, and refreshes obsolete regression assertions. It preserves
+teammate weapon progression, individual cooldowns, layouts, instancing and BRDF/
+normal-map interfaces. Exact details live in [mixed enemy encounters](member-a-monsters.md)
+and [weapon effects](member-a-effects.md).
 
-## Current gameplay
+## Gameplay delivered by A
 
-- Supplied camera-relative WASD supports eight directions, normalized diagonal
-  speed, block collision and sliding. Scene integration also blocks entry into
-  enemies. Player default speed remains 5 blocks/second.
-- Every two simulation seconds, use B's spawn candidates to attempt a batch,
-  capped by 24 live enemies. Add one enemy to each batch every 30 elapsed
-  gameplay seconds. Require four blocks of player separation and validate live
-  block and actor occupancy. One enemy type has **4 HP** and moves at **3.3
-  blocks/second**.
-- Enemy navigation uses four-neighbour BFS with live actor occupancy, varied
-  tie directions and persistent waypoints. Blocked routes are replanned; retaining
-  the waypoint through a grid-boundary crossing fixes the previous centre/turn
-  oscillation. Short movement substeps prevent stepping through walls/actors.
-  Crowding still queues naturally in narrow lanes; no actor overlap is allowed.
-- Holding the left mouse button fires every owned weapon independently at its
-  own cooldown. Shots follow the mouse-projected world point and do not turn the
-  player model. Logical window coordinates use C's camera and framebuffer size
-  to project onto Y=1.32. ImGui capture suppresses gameplay input.
-- Swept projectile collision prevents tunnelling. Each projectile retains its
-  launch-time weapon/speed/damage. Wall collisions win ties with enemy hits.
+- Camera-relative eight-direction WASD with normalized diagonals, block sliding
+  and actor blocking; player speed is 5 blocks/second. Supplied movement was
+  integrated rather than authored anew.
+- Mouse-to-world aiming uses logical window coordinates and the real framebuffer
+  view-projection on Y=1.32. Holding left mouse fires all owned, ready weapons.
+  ImGui input capture suppresses gameplay input.
+- Swept projectile collision prevents tunnelling. Wall contacts win collision
+  ties. Each projectile keeps its launch-time damage, speed, weapon and evolution.
+- Typed spawning uses B's live candidates, four-block minimum player separation,
+  body-specific clearance, a 24-live-enemy cap and two-second spawn batches.
+  Batch size gains one every 30 active seconds.
+- Enemy chase uses persistent four-neighbour grid waypoints, continuous swept
+  world clearance, live actor separation and front-first movement. Current-cell
+  connection and no-progress recovery handle off-centre corner grazing. Narrow
+  passages may queue; recovery does not teleport actors through obstacles.
+- Kills drop typed EXP cubes; attraction starts within four blocks at seven
+  blocks/second, pickup occurs within 0.65 blocks and intentionally ignores cover.
+  Golem drops are visibly larger and grant 2 EXP; other drops grant 1.
+- Threshold is level times three EXP. Up to two distinct random choices offer
+  upgrades/evolution for owned weapons or unlock Laser/Bomb. Selection consumes
+  EXP, increases level and restores 5/5 HP. Unlocks add to the arsenal. Gameplay,
+  timer and visual effects pause while a choice is pending.
+- Player has 5 HP and one-second shared contact-damage protection. Zero HP loses;
+  surviving 180 active seconds wins, with loss winning a same-frame tie. Clear
+  English VICTORY/DEFEAT menus show statistics and Play again.
+- Restart clears actors, drops, progression, timers, render poses and effects,
+  returning to the selected map's spawn. Level switching starts a fresh run and
+  restarts its Day/Night encounter clock.
+- Smaller grounded actors and a fixed local follow camera show the player's
+  neighbourhood. Orthographic half-height is 8, with a camera offset of 7
+  horizontally and 12 vertically (about 60 degrees above the ground). Zoom stays
+  fixed near map edges. This is view clipping, not exploration/fog-of-war.
 
-| Weapon | Damage | Minimum shot interval | Projectile speed | Behaviour |
+## Current team weapon rules
+
+The arsenal/progression redesign was supplied by the team in `8c1a587`; A retains
+and now regression-tests it. Older Heavy/Rapid and fixed 2/4/1 kill-count entries
+in CHANGELOG describe earlier designs and are superseded by these rules.
+
+| Weapon | Base damage | Interval | Speed | Base behaviour |
 | --- | --- | --- | --- | --- |
-| Bullet | 2 | 0.30 s | 5 blocks/s | Stops on first enemy/wall; two hits kill |
-| Laser | 1 | 0.48 s | 40 blocks/s | Stops on first enemy; reflects off one wall |
-| Bomb | 2 | 1.20 s | 8 blocks/s | Explodes on first enemy/wall; full damage within 1.75 blocks |
+| Bullet | 2 | 0.30 s | 5 | Stops at first enemy/wall |
+| Laser | 1 | 0.48 s | 40 | Stops at first enemy; one wall reflection |
+| Bomb | 2 | 1.20 s | 8 | Full radial damage within 1.75 blocks |
 
-Bullet upgrades are speed ×2, damage ×2, speed ×2, then fire rate ×2. Its fifth
-upgrade evolves it into a three-way shot with two smaller base-damage pellets
-at ±30 degrees. Laser upgrades are damage ×2, interval ×0.5, ricochets +1, then
-interval ×0.5. Its fifth upgrade evolves it into a red beam that pierces enemies
-until its first obstacle bounce; after bouncing, it damages and stops at the
-next enemy, even if that enemy was hit before the bounce. Bomb upgrades double
-blast radius, add 5 blocks/second of flight speed, double damage and increase
-fire rate by 50%. Its fifth upgrade evolves it into a firebomb with an orange-red
-flight trail and a three-second burning area dealing 2 damage per second.
+Bullet stages: speed x2, damage x2, speed x2, interval /2; fifth selection evolves
+into three projectiles with two smaller base-damage pellets at +/-30 degrees.
+Laser stages: damage x2, interval /2, reflections +1, interval /2; evolution turns
+red and pierces before its first bounce, then damages and stops on the next enemy.
+Bomb stages: radius x2, speed +5, damage x2, interval x2/3; evolution leaves a
+three-second burning area doing 2 damage per second. Blast damage has no falloff,
+reaches enemies behind cover within the radius and does not hurt the player.
+Bombs also detonate at their three-second lifetime limit.
 
-Bomb radius uses enemy-centre distance in X/Z, has no falloff and also affects
-enemies behind cover inside the radius; own bombs do not damage the player. A
-Bomb reaching its three-second lifetime also detonates. Firebomb burning areas
-use the upgraded bomb radius.
+A's new hit styles are short Bullet debris, cyan/red Laser electricity, radial
+Bomb bursts and evolved Bomb red ground vortices. Night adds bounded, weak local
+fill lights; Day lighting is unchanged. Effects use independent RNG and a single
+particle instanced draw, without modifying combat or spawn randomness.
 
-- Kills drop one green EXP proxy. Within four blocks it attracts at seven
-  blocks/second, collects within 0.65 blocks and intentionally ignores cover.
-- Threshold is `current level * 3` EXP. Level-up freezes movement, enemies,
-  spawning and timer and opens a centred, dimmed-background English modal.
-  Up to two random choices are offered: an upgrade/evolution for an owned weapon
-  or an unlock for Laser/Bomb. Unlocking adds a weapon to the arsenal. Selection
-  consumes EXP, increments level, restores all 5 HP and resumes (or offers
-  another level if enough EXP remains). All owned weapons fire together while
-  the left mouse button is held.
-- Player has 5 HP and one-second invulnerability after contact damage. Survive
-  180 seconds to win; lose at zero HP. Loss wins a same-frame tie. Terminal
-  states stop simulation and show a centred **VICTORY** or **DEFEAT** modal with
-  kills, level, survival time and **Play again**. Restart resets player/gameplay
-  together, preserving the current map. None of these menus depend on saved HUD
-  sizes; choices cannot be dismissed into an unexplained paused state.
+## Enemy profiles and encounter timing
 
-## Local follow camera and smaller grounded actors
+| Kind | HP | Damage | Speed | EXP |
+| --- | --- | --- | --- | --- |
+| Zombie | 4 | 1 | 3.3 | 1 |
+| Golem | 14 (3.5x Zombie) | 2 | 2.1 | 2 |
+| Spider | 3.4 (0.85x Zombie) | 1 | 4.5 | 1 |
 
-The latest requested view shows the player's neighbourhood, with a fixed
-orthographic half-height of 8 blocks. Camera offset is 7 blocks horizontally and
-12 vertically (about 60 degrees above the arena plane). Player position is always the
-view target; zoom does not change near map edges or adapt to fit the arena.
-Distant scene areas fall outside the normal view clipping volume. No Day/Night
-lighting, fog or exploration system is implied by this camera change.
+Day Golems enter after 60 seconds and ramp to Zombie:Golem 70:30 by 120.
+Night Golems enter after 30 seconds and Spiders after 60; by 120 seconds the
+weights are Zombie:Golem:Spider 60:15:25. Each new type ramps linearly for 60
+seconds. These are generation weights, not quotas for surviving enemies.
+Three distinct hierarchical models, typed geometry and procedural Golem/Spider
+skin assets are integrated with C's instanced renderer. All types retain B's
+water slowdown. See the monster specification for exact heights and extents.
 
-Player and enemy models use 70% of the old world scale. Shared `ActorGeometry.h`
-provides the render scale, grounded actor-centre height (1.32), player extents
-(0.294, 0.308, 0.294), enemy extents (0.245, 0.308, 0.245), and separation values.
-Player feet and enemy base remain above the floor at Y=1. Actor/world collision,
-actor separation, contact reach, bullet hits and the aim plane use the new
-proportions. B's map/metadata is unchanged: player and enemy spawn consumers take
-its X/Z and ground the smaller body at the shared height. C should use these
-shared values when replacing models; do not hardcode the old 1.45 height.
+## Interfaces and team ownership
 
-A valid upgrade selection fully heals to 5 HP, including successive level-ups;
-an invalid choice does not heal or resume. The English modal explains the heal.
-New tests cover wounded-player upgrade healing, actor scaling/grounding and
-camera follow/scale/clipping/aim across landscape, portrait and ultrawide aspects.
-Those test and render results were recorded before the latest weapon redesign;
-they do not validate the current progression, progressive spawns or firebomb.
-The 240-frame render smoke passed with the prior camera workload label; timings
-cannot be compared directly with the older full-map view.
-Member A has accepted the current gameplay in conversation; broader device and
-resolution acceptance remains future integration work.
+| Owner | Handoff |
+| --- | --- |
+| B: maps, collision, lighting | A reads the live `ArenaWorld`, `canOccupy` and layout spawns. Keep metadata clear for typed bodies and call `rebuildWorldGeometry()` after edits. New Night fill light uniforms are presentation-only and preserve B's main light/materials. |
+| C: presentation and instancing | Read gameplay snapshots, stable enemy IDs, `stats()`, `weapons()` and `upgradeOptions()`. Use `chooseUpgrade(index)` and scene reset rather than changing phase directly. Preserve pause/heal/reset behaviour when changing UI. |
+| C: effects/rendering | `impacts()` adds launch-time evolution and radius to transient contact data. Scene consumes once per simulation update. Particle colour uses attribute 8 on its own VAO; existing matrix attributes 3-6 and normal 7 remain. |
+| Team: geometry | `ActorGeometry.h` and `EnemyTypes.h` are authoritative. Player/default Zombie centre is Y=1.32; Golem/Spider differ. Use each profile for navigation, hit bounds, drawing and spawn grounding. |
 
-## Interfaces for teammates
+`shots()`, `hits()`, `attacks()` and `impacts()` clear at the next update/reset;
+consume before advancing again, and do not retain references. `enemies()`,
+`bullets()`, `orbs()`, `explosions()` and `burningAreas()` are read-only snapshots.
+Existing APIs are retained. `ExperienceOrb::sourceKind` adds type-driven pickup
+presentation without changing attraction/reward rules. `ZombieInstance` and
+`drawZombies` retain their compatibility names while supporting all three types.
 
-### Member B: map and collision
+B's Day/Night maps, water, player light, normal maps and material shading are
+teammate work. C's HUD/card presentation, model/animation integration and
+instancing/BRDF contributions are not claimed as new A work. The supplied start
+screen, textured player, WASD, ImGui lifecycle and benchmark also predate A.
 
-`Gameplay::update(dt, playerPosition, world, optionalShotTarget)` reads the live
-world without owning or editing it. `spawnEnemy(position, player, world)` checks
-solid clearance, distance, enemy occupancy and cap. `enemyHalfExtents()` is
-`(0.245, 0.308, 0.245)`; actor centres rest at Y=1.32. Live map changes are checked
-while moving/replanning. Continue calling `ArenaScene::rebuildWorldGeometry()`
-after block edits. Keep the player spawn clear for restart.
+## Verification and remaining acceptance
 
-Day/Night selection remains disabled until distinct layouts are supplied.
-Coordinate with C on replacing `ArenaWorld(layout)`, rebuilding the mesh and
-resetting gameplay/player together. Do not retain old spawn metadata for a new
-layout. Bomb blasts currently do not destroy map blocks.
+Current Linux C++17 Release application build and all **43 regression cases**
+pass. Coverage includes three typed bodies, encounter ramps, corner recovery,
+real unlocks and independent cooldowns, all weapon upgrades/evolutions, particles,
+lights, reset and pause. Six earlier failures came from tests retaining obsolete
+rules, detailed in [validation and replay](member-a-validation.md). No test is
+disabled and no weapon behaviour was reverted to satisfy an old assertion.
 
-### Member C: models, animation, HUD and system integration
+Production-shader Day/Night render checks cover all five effect styles, GL state,
+real impacts, upgrade pause and reset. Pixel comparisons confirm Night fill is
+local and does not change Day or a distant control region. The CLI 240-frame
+software-render smoke is a runtime check, not comparative hardware evidence.
 
-- `ArenaScene::gameplay()` exposes simulation. `stats()` supplies phase, HP,
-  timer, level, EXP, selected weapon and kills.
-- Read-only `enemies()`, `bullets()` and `orbs()` snapshots provide positions.
-  Enemy IDs remain stable until reset; navigation waypoints are gameplay-owned.
-  `ArenaScene` now tracks enemy yaw and walk phase by ID, and
-  `ArenaRenderer::drawZombie` draws a hierarchical six-part zombie with fixed
-  forward arms and swinging legs. `Gameplay::attacks()` emits frame-local events
-  when proximity damage is applied; the scene uses these to raise the attacking
-  zombie's arms. `assets/textures/zombie.png` is the 64 × 64 skin atlas.
-- `shots()` contains launch position/direction/weapon; `hits()` contains impact
-  position/enemy ID/killed/weapon. Both clear on every simulation update; consume
-  before the next update and never retain references across update/reset.
-- `attacks()` contains the enemy ID, position and direction whenever proximity
-  damage is actually applied. It is frame-local and drives the zombie arm-raise
-  animation; the current one-second damage cooldown is shared globally.
-- `explosions()` contains active blast positions, radii and ages (0.4-second
-  lifetime); `burningAreas()` exposes firebomb position, radius and age for the
-  scene's ground ring and rising particles.
-- `weaponProfile` and `weaponDescription` share the simulation/UI contract.
-  The enum is `Bullet` (`Balance` remains an alias), `Laser` and `Bomb`.
-  `weapons()` reports owned-weapon upgrade/evolution state, while
-  `upgradeOptions()` and `chooseUpgrade(index)` share the random card contract.
-  `upgradeChoices()` remains a weapon-only compatibility view.
-- `aimOnPlane` projects logical cursor/window dimensions with the actual
-  framebuffer view-projection onto the actor-height plane. Shooting does not
-  change the player model's facing; it uses the projected point directly.
-- Benchmark timing boundaries remain unchanged. Command-line benchmark starts
-  before spawning and freezes the static scene under `milestone2-local-follow-arena`.
-  In-game benchmark freezes the current actor snapshot under
-  `milestone2-local-follow-gameplay-frozen`; draw-call counts include blast rings. This is
-  smoke evidence, not baseline-versus-instancing performance evidence.
+Member A previously accepted gameplay after Windows/Visual Studio iterations;
+that feedback does not constitute Windows validation of this follow-up. Remaining
+work is to replay the current build on Windows and CSE/VLAB, accept full-run
+balance, and capture final report/video and matched benchmark evidence with the
+team. Build steps and replay actions are in the linked validation guide.
 
-## Validation
-
-Linux cloud instance: GCC 14.2, CMake 3.31, Mesa llvmpipe software rendering.
-The current reimplementation was compiled in the existing WSL build directory
-with `cmake --build build --target Craft --clean-first --parallel 4`; all app
-sources, including `FollowCamera.cpp`, were rebuilt successfully. CTest and
-manual visual/gameplay acceptance were not run for this reimplementation.
-The prior test and render results below were recorded before the latest weapon
-redesign and do not validate its progression, progressive spawning or firebomb.
-
-```bash
-source /workspace/.setup-9415/env.sh  # cloud-local dependencies only
-cmake --build build --parallel 4
-ctest --test-dir build --output-on-failure
-xvfb-run -a -s '-screen 0 1280x720x24' \
-  env LIBGL_ALWAYS_SOFTWARE=1 CRAFT_BENCHMARK=1 ./build/Craft
-```
-
-- Full application/test build passed; **21/21 CTest cases passed**. Coverage
-  comprises 16 A gameplay regression cases, four B world cases and the existing
-  starter math case. Coverage includes movement/aim, spawning, crowd rerouting,
-  enemy speed, EXP/selection/reset, terminal states, weapon speeds/cooldowns,
-  exact 2/4/1 hit counts after selection, laser penetration/one reflection and
-  bomb impact/AOE with full damage and out-of-range survival.
-- Separate ImGui interaction harness exercised actual upgrade and victory/defeat
-  modals at 640x480, 1280x720 and 1920x1080, even with Arena status collapsed:
-  menus fit without scrolling, outside clicks do not dismiss the upgrade,
-  choosing resumes, and Play again requests a reset and closes the result menu.
-- Xvfb/XTest input/render smoke injected Enter, WASD, mouse clicks and Escape;
-  screenshots inspected and executable exited 0. The actual defeat dialog and
-  Play again were exercised: HP reset to 5, time to roughly 180, kills/EXP to
-  zero and player to the central spawn. The command-line benchmark
-  completed 60 warm-up + 240 measured frames and exited 0.
-
-For a workstation: configure `cmake -S . -B build -DBUILD_TESTING=ON`, build/test,
-then run `./build/Craft` (Windows executable path depends on the generator).
-On Windows, the earlier C++20 designated initializer in `SceneBenchmark` was
-replaced with C++17-compatible assignments; no standard upgrade is required.
-
-Member A ran the project on Windows/Visual Studio, reported the encountered
-issues during iteration, and subsequently accepted the current gameplay in chat.
-This user feedback is separate from the agent-run Linux checks above. A full
-Windows automated test log, CSE/VLAB validation and final team visual acceptance
-remain outstanding. Day/Night maps, final models/HUD, crosshair presentation and
-M3 particle,
-normal-mapping and BRDF challenges are not claimed here.
-
-## Team handoff
-
-> Member A / M2: combat and EXP/selection run on B's arena. Added explicit
-> upgrade/result modals and full-scene restart, faster occupancy-aware enemy
-> navigation and Balance/Laser/Bomb behaviours. Level-up offers two random
-> distinct weapons. B's collision/spawn interfaces are preserved; C can consume
-> actor/shot/hit/blast snapshots for final presentation and instancing. Build,
-> 21 tests and UI/render checks passed; Member A accepted the gameplay after
-> Windows iteration. Final team integration and CSE acceptance remain follow-up
-> work. M3 particles are still deferred.
-
-## Authorship and delivery record
-
-The starter already supplied the start screen, six-part textured player and limb
-swing, normalized WASD/block movement, camera scaffolding, ImGui lifecycle, mesh
-helpers and benchmark harness. B supplied the configurable map and spawn
-metadata. A reused these foundations; they are not claimed as entirely new A work.
-A added gameplay systems, tests and integration, fixed the reported UX/build/AI
-issues, and adjusted the camera/actor scale at the user's request.
+## Delivery history
 
 | Commit | A delivery |
 | --- | --- |
-| `5cb86d4` | M1 combat prerequisites and M2 EXP/selection/state integration, tests and handoff |
-| `fdd6266` | C++17-compatible benchmark snapshot initialization for the reported MSVC build failure |
+| `5cb86d4` | Combat prerequisites, EXP/selection/state integration, tests and handoff |
+| `fdd6266` | C++17-compatible initialization for the reported MSVC C7555 failure |
 | `ce52a0b` | Reliable centred upgrade selection and initial weapon differentiation |
-| `aa53b10` | Balance/Laser/Bomb, live crowd routing, faster enemies, result/restart modals |
-| `91e0e6f` | Upgrade full healing, smaller grounded actors and local overhead follow view |
+| `aa53b10` | Balance/Laser/Bomb, crowd routing and result/restart menus |
+| `91e0e6f` | Full healing, smaller grounded actors and local follow view |
+| `e32b7cf` | Typed Zombie/Golem/Spider encounters, models/skins, curves and navigation |
 
-Older Heavy/Rapid and level-based damage entries in CHANGELOG are historical;
-the current pool/values are exclusively the Balance/Laser/Bomb table above.
-
-| Code area | Ownership/interface supplied by this A work |
-| --- | --- |
-| `src/core/gameplay/Gameplay.*` | CPU simulation, weapons, enemies, progression, phases and events |
-| `src/core/gameplay/ActorGeometry.h` | Shared render/collision/grounding proportions |
-| `src/core/gameplay/Aim.h` | Camera-to-world aim conversion |
-| `src/app/ArenaScene.*` | Player/world/simulation/render integration and complete restart |
-| `src/app/GameplayUi.*` | Temporary English status, selection and outcome presentation |
-| `src/app/FollowCamera.*` | Requested angled local follow view |
-| `src/graphics/ArenaRenderer.*` | Textured hierarchical player/zombie, projectile/orb proxies and blast rendering |
-| `tests/test_gameplay.cpp` | Gameplay, navigation, weapons, healing, geometry, movement and camera regression checks |
-
-## Next work and acceptance boundary
-
-| Owner | Remaining work |
-| --- | --- |
-| A / M3 | Weapon-hit particle bursts/styles using shot/hit/blast data; final integration and report evidence |
-| B | Day/Night map configurations, planned lighting/material work and normal mapping |
-| C | Polished HUD/menus and crosshair, instancing/BRDF and comparative performance evidence |
-| Team | Wire level switching, integrate presentation, validate CSE/VLAB and target platforms, complete report/video |
-
-Further weapon balance changes should preserve the currently agreed 2/4/1 hit
-counts unless the team explicitly changes the design. Keep simulation pause,
-heal-on-selection and full scene restart when replacing the temporary menus.
-See [validation and replay guide](member-a-validation.md) for evidence boundaries,
-Windows build instructions and the repeatable manual acceptance sequence.
+The present follow-up supplies the Golem rebalance, corner fix, hit effects,
+Night glow, larger drops and refreshed regression coverage described above.

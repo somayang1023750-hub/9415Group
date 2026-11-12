@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <array>
+#include <cstddef>
 #include <cmath>
 #include <cstdint>
 #include <filesystem>
@@ -428,6 +429,17 @@ ArenaRenderer::ArenaRenderer(const world::ArenaWorld& world,
   configureLitVertexArray(playerVertexArray_, playerVertexBuffer_,
                           playerVertices, true);
 
+  glGenVertexArrays(1, &particleVertexArray_);
+  glGenBuffers(1, &particleInstanceBuffer_);
+  glBindVertexArray(particleVertexArray_);
+  glBindBuffer(GL_ARRAY_BUFFER, playerVertexBuffer_);
+  glEnableVertexAttribArray(0);
+  glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 11 * sizeof(float), nullptr);
+  glEnableVertexAttribArray(7);
+  glVertexAttribPointer(7, 3, GL_FLOAT, GL_FALSE, 11 * sizeof(float),
+                        reinterpret_cast<void*>(8 * sizeof(float)));
+  glBindVertexArray(0);
+
   std::vector<float> zombieVertices;
   zombieVertices.reserve(kZombiePartCount * 36 * 11);
   for (std::size_t part = 0; part < kZombieSkinLayouts.size(); ++part) {
@@ -455,6 +467,8 @@ ArenaRenderer::ArenaRenderer(const world::ArenaWorld& world,
 }
 
 ArenaRenderer::~ArenaRenderer() {
+  glDeleteBuffers(1,&particleInstanceBuffer_);
+  glDeleteVertexArrays(1,&particleVertexArray_);
   glDeleteBuffers(1, &blastVertexBuffer_);
   glDeleteVertexArrays(1, &blastVertexArray_);
   if (playerVertexBuffer_ != 0) {
@@ -862,6 +876,90 @@ void ArenaRenderer::drawBlast(const Shader& shader, const glm::mat4& vp,
   glBindVertexArray(blastVertexArray_);
   glDrawArrays(GL_LINE_LOOP, 0, 64);
   glBindVertexArray(0);
+}
+
+void ArenaRenderer::setEffectLights(
+    const Shader& shader, bool night,
+    const std::vector<gameplay::EffectLight>& lights) const {
+  shader.use();
+  const int count =
+      night ? static_cast<int>(std::min(lights.size(),
+                                        gameplay::ParticleEffects::kLightLimit))
+            : 0;
+  shader.setInt("uEffectLightCount", count);
+  for (int i = 0; i < count; ++i) {
+    const auto suffix = "[" + std::to_string(i) + "]";
+    shader.setVec3("uEffectLightPosition" + suffix, lights[i].position);
+    shader.setVec3("uEffectLightColor" + suffix,
+                   lights[i].color * lights[i].strength);
+    shader.setFloat("uEffectLightRadius" + suffix, lights[i].radius);
+  }
+}
+
+void ArenaRenderer::drawParticles(
+    const Shader& shader, const glm::mat4& vp,
+    const std::vector<gameplay::ParticleVisual>& particles) const {
+  if (particles.empty()) return;
+  struct Instance {
+    glm::mat4 model;
+    glm::vec4 color;
+  };
+  std::vector<Instance> instances;
+  instances.reserve(particles.size());
+  for (const auto& p : particles) {
+    const auto y = glm::normalize(p.direction);
+    const auto x = glm::normalize(glm::cross(
+        std::abs(y.y) < .95F ? glm::vec3(0, 1, 0) : glm::vec3(1, 0, 0), y));
+    const auto z = glm::cross(x, y);
+    const glm::mat4 model(glm::vec4(x * p.halfExtents.x * 2.F, 0),
+                          glm::vec4(y * p.halfExtents.y * 2.F, 0),
+                          glm::vec4(z * p.halfExtents.z * 2.F, 0),
+                          glm::vec4(p.position, 1));
+    instances.push_back({model, p.color});
+  }
+  const bool blended = glIsEnabled(GL_BLEND);
+  GLboolean depthWrite;
+  glGetBooleanv(GL_DEPTH_WRITEMASK, &depthWrite);
+  GLint srcRgb, dstRgb, srcA, dstA;
+  glGetIntegerv(GL_BLEND_SRC_RGB, &srcRgb);
+  glGetIntegerv(GL_BLEND_DST_RGB, &dstRgb);
+  glGetIntegerv(GL_BLEND_SRC_ALPHA, &srcA);
+  glGetIntegerv(GL_BLEND_DST_ALPHA, &dstA);
+  glEnable(GL_BLEND);
+  glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+  glDepthMask(GL_FALSE);
+  shader.use();
+  shader.setInt("uInstanced", 1);
+  shader.setInt("uParticlePass", 1);
+  shader.setInt("uUseTexture", 0);
+  shader.setInt("uMaterialType", 3);
+  shader.setVec3("uTint", glm::vec3(1));
+  shader.setMat4("uViewProjection", vp);
+  glBindVertexArray(particleVertexArray_);
+  glBindBuffer(GL_ARRAY_BUFFER, particleInstanceBuffer_);
+  glBufferData(GL_ARRAY_BUFFER,
+               static_cast<GLsizeiptr>(instances.size() * sizeof(Instance)),
+               instances.data(), GL_STREAM_DRAW);
+  for (int column = 0; column < 4; ++column) {
+    const GLuint attribute = 3 + column;
+    glEnableVertexAttribArray(attribute);
+    glVertexAttribDivisor(attribute, 1);
+    glVertexAttribPointer(attribute, 4, GL_FLOAT, GL_FALSE, sizeof(Instance),
+                          reinterpret_cast<void*>(column * sizeof(glm::vec4)));
+  }
+  glEnableVertexAttribArray(8);
+  glVertexAttribDivisor(8, 1);
+  glVertexAttribPointer(8, 4, GL_FLOAT, GL_FALSE, sizeof(Instance),
+                        reinterpret_cast<void*>(offsetof(Instance, color)));
+  glDrawArraysInstanced(GL_TRIANGLES, 0, 36,
+                        static_cast<GLsizei>(instances.size()));
+  glBindVertexArray(0);
+  glBindBuffer(GL_ARRAY_BUFFER, 0);
+  shader.setInt("uParticlePass", 0);
+  shader.setInt("uInstanced", 0);
+  glDepthMask(depthWrite);
+  glBlendFuncSeparate(srcRgb, dstRgb, srcA, dstA);
+  if (!blended) glDisable(GL_BLEND);
 }
 
 int ArenaRenderer::worldVertexCount() const noexcept {

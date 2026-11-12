@@ -8,6 +8,7 @@
 #include <vector>
 
 #include "core/gameplay/EnemyTypes.h"
+#include "core/gameplay/ParticleEffects.h"
 #include "graphics/Texture.h"
 
 namespace craft::world {
@@ -75,6 +76,14 @@ class ArenaRenderer {
   void drawBlast(const Shader& shader, const glm::mat4& viewProjection,
                  const glm::vec3& position, float radius, float age) const;
 
+  // B: weak Night-only fill; Day uploads zero lights, retaining map lighting.
+  void setEffectLights(const Shader& shader, bool night,
+                       const std::vector<gameplay::EffectLight>& lights) const;
+  // C: dedicated VAO adds RGBA at attribute 8; model attributes 3-7 stay intact.
+  void drawParticles(
+      const Shader& shader, const glm::mat4& viewProjection,
+      const std::vector<gameplay::ParticleVisual>& particles) const;
+
   [[nodiscard]] int worldVertexCount() const noexcept;
   [[nodiscard]] int worldDrawCallCount() const noexcept;
 
@@ -84,6 +93,8 @@ class ArenaRenderer {
     int vertexCount = 0;
   };
 
+  unsigned int particleVertexArray_ = 0;
+  unsigned int particleInstanceBuffer_ = 0;
   unsigned int blastVertexArray_ = 0;
   unsigned int blastVertexBuffer_ = 0;
   Texture playerTexture_;

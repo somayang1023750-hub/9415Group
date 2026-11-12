@@ -32,7 +32,7 @@ TEST_CASE(
   const auto z = enemyProfile(EnemyKind::Zombie),
              g = enemyProfile(EnemyKind::Golem),
              s = enemyProfile(EnemyKind::Spider);
-  REQUIRE(g.health == z.health * 2);
+  REQUIRE(g.health == z.health * 3.5F);
   REQUIRE(g.contactDamage == z.contactDamage * 2);
   REQUIRE(g.experience == z.experience * 2);
   REQUIRE(s.health == Catch::Approx(z.health * .85F));
@@ -168,6 +168,7 @@ TEST_CASE(
     REQUIRE(game.stats().kills == 1);
     REQUIRE(game.orbs().size() == 1);
     REQUIRE(game.orbs()[0].value == enemyProfile(kind).experience);
+    REQUIRE(game.orbs()[0].sourceKind == kind);
     const auto collector = game.orbs()[0].position;
     game.update(.01F, collector, world);
     REQUIRE(game.stats().experience == enemyProfile(kind).experience);
@@ -306,4 +307,29 @@ TEST_CASE("Mixed waves keep the existing cap and terrain slowdown",
                           ArenaWorld::kWaterMovementSpeedMultiplier)
                 .margin(.001));
   }
+}
+TEST_CASE(
+    "Bodies grazing voxel corners recover instead of retrying a clipped path",
+    "[enemies][navigation]") {
+  craft::world::ArenaLayout layout;
+  layout.obstacles = {{10, 10, 4, 4, 2}};
+  const ArenaWorld world(layout);
+  const glm::vec3 target(17.5F, kActorCentreY, 16.5F);
+  for (auto kind : {EnemyKind::Zombie, EnemyKind::Golem, EnemyKind::Spider})
+    for (float edge : {.0002F, .0062F, .0302F})
+      for (float z : {13.85F, 13.92F, 14.06F}) {
+        const auto p = enemyProfile(kind);
+        Gameplay game;
+        REQUIRE(game.spawnEnemy({10 - p.halfExtents.x - edge, p.centreY, z},
+                                {26, 1.32F, 26}, world, kind));
+        for (int frame = 0; frame < 300; ++frame) {
+          const auto before = game.enemies()[0].position;
+          game.update(.02F, target, world);
+          const auto after = game.enemies()[0].position;
+          REQUIRE(world.canOccupy(after, p.halfExtents));
+          REQUIRE(glm::length(after - before) <= p.speed * .02F + .001F);
+        }
+        INFO("kind=" << int(kind) << " edge=" << edge << " z=" << z);
+        REQUIRE(glm::length(game.enemies()[0].position - target) < 1.4F);
+      }
 }

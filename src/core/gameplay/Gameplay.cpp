@@ -62,6 +62,7 @@ void Gameplay::reset() {
   bullets_.clear();
   orbs_.clear();
   hits_.clear();
+  impacts_.clear();
   shots_.clear();
   attacks_.clear();
   choices_.clear();
@@ -162,6 +163,7 @@ void Gameplay::update(float dt, const glm::vec3& player,
                       const world::ArenaWorld& world,
                       std::optional<glm::vec3> target) {
   hits_.clear();
+  impacts_.clear();
   shots_.clear();
   attacks_.clear();
   if (!std::isfinite(dt) || dt <= 0 || stats_.phase != Phase::Playing) return;
@@ -265,13 +267,48 @@ void Gameplay::update(float dt, const glm::vec3& player,
     const auto profile = enemyProfile(e.kind);
     const auto worldClear = [&](glm::vec3 from, glm::vec3 to) {
       from.y = to.y = profile.centreY;
-      const int count =
-          std::max(1, static_cast<int>(std::ceil(distance(from, to) / .1F)));
-      for (int i = 0; i <= count; ++i)
-        if (!world.canOccupy(
-                from + (to - from) * (static_cast<float>(i) / count),
-                profile.halfExtents))
-          return false;
+      if (!world.canOccupy(from, profile.halfExtents) ||
+          !world.canOccupy(to, profile.halfExtents))
+        return false;
+      const auto low = glm::floor(glm::min(from, to) - profile.halfExtents);
+      const auto high = glm::floor(glm::max(from, to) + profile.halfExtents);
+      // Continuous slab test against expanded voxels, with the same edge
+      // tolerance as canOccupy. Tangent contact is allowed; penetration is not.
+      // Sampling missed tiny corner clips and repeatedly selected blocked
+      // paths.
+      for (int y = static_cast<int>(low.y); y <= static_cast<int>(high.y); ++y)
+        for (int z = static_cast<int>(low.z); z <= static_cast<int>(high.z);
+             ++z)
+          for (int x = static_cast<int>(low.x); x <= static_cast<int>(high.x);
+               ++x) {
+            if (!world.isSolid(x, y, z)) continue;
+            const auto lo =
+                glm::vec3(x, y, z) - profile.halfExtents + glm::vec3(.0001F);
+            const auto hi = glm::vec3(x + 1, y + 1, z + 1) +
+                            profile.halfExtents - glm::vec3(.0001F);
+            float enter = 0, leave = 1;
+            bool intersects = true;
+            for (int axis = 0; axis < 3; ++axis) {
+              const float d = to[axis] - from[axis];
+              if (std::abs(d) < 1e-8F) {
+                if (from[axis] <= lo[axis] || from[axis] >= hi[axis]) {
+                  intersects = false;
+                  break;
+                }
+              } else {
+                float a = (lo[axis] - from[axis]) / d,
+                      b = (hi[axis] - from[axis]) / d;
+                if (a > b) std::swap(a, b);
+                enter = std::max(enter, a);
+                leave = std::min(leave, b);
+                if (enter >= leave) {
+                  intersects = false;
+                  break;
+                }
+              }
+            }
+            if (intersects) return false;
+          }
       return true;
     };
     const auto actorClear = [&](const glm::vec3& point) {
@@ -290,6 +327,8 @@ void Gameplay::update(float dt, const glm::vec3& player,
           centre.y = 0;
           auto extents =
               profile.halfExtents + enemyProfile(other.kind).halfExtents;
+          extents.x -= .00001F;
+          extents.z -= .00001F;
           extents.y = 1;
           if (intersection(from, to, centre - extents, centre + extents) <= 1)
             return false;
@@ -316,6 +355,10 @@ void Gameplay::update(float dt, const glm::vec3& player,
       goal.y = profile.centreY;
       return length > stop ? goal : from;
     };
+    const auto previousPosition = e.position;
+    if (e.waypoint && (!worldClear(e.position, *e.waypoint) ||
+                       !actorRouteClear(e.position, *e.waypoint)))
+      e.waypoint.reset();
     const auto direct = approach(e.position);
     if (worldClear(e.position, direct) && actorRouteClear(e.position, direct))
       e.waypoint = direct;
@@ -376,6 +419,14 @@ void Gameplay::update(float dt, const glm::vec3& player,
             glm::vec3(next % width + .5F, profile.centreY, next / width + .5F);
       }
     }
+    // An off-centre body beside a corner may not connect directly to any
+    // neighbouring centre. Connect through its own free cell before retrying.
+    const auto anchor =
+        glm::vec3(std::floor(e.position.x) + .5F, profile.centreY,
+                  std::floor(e.position.z) + .5F);
+    if (!e.waypoint && distance(e.position, anchor) > .02F &&
+        worldClear(e.position, anchor) && actorRouteClear(e.position, anchor))
+      e.waypoint = anchor;
     if (e.waypoint) {
       auto delta = *e.waypoint - e.position;
       delta.y = 0;
@@ -403,6 +454,19 @@ void Gameplay::update(float dt, const glm::vec3& player,
         }
       }
     }
+    if (distance(previousPosition, e.position) < .0001F &&
+        distance(e.position, player) > 1.1F) {
+      e.blockedSeconds += dt;
+      if (e.blockedSeconds > .35F) {
+        e.waypoint.reset();
+        if (distance(e.position, anchor) > .02F &&
+            worldClear(e.position, anchor) &&
+            actorRouteClear(e.position, anchor))
+          e.waypoint = anchor;
+        e.blockedSeconds = 0;
+      }
+    } else
+      e.blockedSeconds = 0;
     const auto combined = profile.halfExtents + playerHalfExtents();
     const auto gap =
         glm::max(glm::abs(e.position - player) - combined, glm::vec3(0));
@@ -503,8 +567,11 @@ void Gameplay::update(float dt, const glm::vec3& player,
       } else if (victim) {
         const bool evolvedLaserAfterBounce =
             b.weapon == Weapon::Laser && b.evolved && !b.piercesEnemies;
-        if (!victimAlreadyHit || evolvedLaserAfterBounce)
+        if (!victimAlreadyHit || evolvedLaserAfterBounce) {
           damageEnemy(*victim, b.damage, b.position, b.weapon);
+          impacts_.push_back(
+              {b.position, glm::normalize(b.velocity), b.weapon, b.evolved});
+        }
         if (!victimAlreadyHit) b.hitEnemies.push_back(victim->id);
         if (b.weapon == Weapon::Bullet ||
             (b.weapon == Weapon::Laser && !b.piercesEnemies))
@@ -512,13 +579,18 @@ void Gameplay::update(float dt, const glm::vec3& player,
       } else if (b.weapon == Weapon::Laser &&
                  b.reflections < b.maxReflections &&
                  glm::length(wallNormal) > 0) {
+        impacts_.push_back(
+            {b.position, glm::normalize(b.velocity), b.weapon, b.evolved});
         for (int axis = 0; axis < 3; ++axis)
           if (wallNormal[axis] != 0) b.velocity[axis] = -b.velocity[axis];
         b.position += wallNormal * 0.002F;
         ++b.reflections;
         if (b.evolved) b.piercesEnemies = false;
-      } else
+      } else {
+        impacts_.push_back(
+            {b.position, glm::normalize(b.velocity), b.weapon, b.evolved});
         consumed = true;
+      }
     }
     if (!consumed && b.life <= 0 && b.weapon == Weapon::Bomb)
       explode(b.position, b.damage, b.blastRadius, b.evolved);
@@ -557,11 +629,14 @@ void Gameplay::damageEnemy(Enemy& enemy, int damage, const glm::vec3& impact,
   hits_.push_back({impact, enemy.id, enemy.health <= 0, weapon});
   if (enemy.health <= 0) {
     ++stats_.kills;
-    orbs_.push_back({enemy.position, enemyProfile(enemy.kind).experience});
+    orbs_.push_back(
+        {enemy.position, enemyProfile(enemy.kind).experience, enemy.kind});
   }
 }
 void Gameplay::explode(const glm::vec3& position, int damage, float blastRadius,
                        bool firebomb) {
+  impacts_.push_back(
+      {position, {0, 1, 0}, Weapon::Bomb, firebomb, blastRadius});
   explosions_.push_back({position, blastRadius});
   if (firebomb) burningAreas_.push_back({position, blastRadius});
   // No falloff: every enemy centre inside the radius receives full damage,

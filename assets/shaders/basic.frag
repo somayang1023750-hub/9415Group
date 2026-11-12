@@ -3,6 +3,12 @@
 out vec4 fragColor;
 
 in vec3 vertexColor;
+in float particleAlpha;
+uniform int uParticlePass;
+uniform int uEffectLightCount;
+uniform vec3 uEffectLightPosition[8];
+uniform vec3 uEffectLightColor[8];
+uniform float uEffectLightRadius[8];
 in vec2 vertexUV;
 in vec3 vertexWorldPosition;
 in vec3 vertexWorldNormal;
@@ -100,7 +106,26 @@ vec3 linearToSrgb(vec3 color) {
     return mix(high, low, lowRange);
 }
 
+// Small bounded pools of coloured fill light, enabled only in Night mode.
+vec3 effectLight(vec3 normal) {
+    vec3 result = vec3(0.0);
+    for (int i = 0; i < uEffectLightCount; ++i) {
+        vec3 offset = uEffectLightPosition[i] - vertexWorldPosition;
+        float d2 = dot(offset, offset);
+        float r2 = uEffectLightRadius[i] * uEffectLightRadius[i];
+        if (d2 >= r2) continue;
+        float falloff = 1.0 - d2 / max(r2, 0.001);
+        float diffuse = max(dot(normal, offset * inversesqrt(max(d2, 0.001))), 0.0);
+        result += uEffectLightColor[i] * falloff * falloff * (0.25 + 0.75 * diffuse);
+    }
+    return min(result, vec3(0.45));
+}
+
 void main() {
+    if (uParticlePass != 0) {
+        fragColor = vec4(vertexColor * uTint, particleAlpha);
+        return;
+    }
     vec4 baseColor = vec4(vertexColor * uTint, 1.0);
     if (uUseTexture != 0)
         baseColor *= texture(uTexture, vertexUV);
@@ -141,7 +166,8 @@ void main() {
             - fresnelSchlickRoughness(nDotV, f0, roughness))
             * (1.0 - metallic);
         vec3 ambient = diffuseWeight * baseColor.rgb * uAmbientColor;
-        vec3 lighting = ambient + directBrdf * radiance * nDotL;
+        vec3 lighting = ambient + directBrdf * radiance * nDotL
+                      + baseColor.rgb * effectLight(n);
         if (uMaterialType == WATER) {
             vec3 environmentFresnel =
                 fresnelSchlickRoughness(nDotV, f0, roughness);
@@ -162,6 +188,6 @@ void main() {
     }
     float highlight = nDotL > 0.0 ? pow(rDotV, shininess) : 0.0;
     vec3 color = baseColor.rgb * (uAmbientColor + radiance * nDotL * diffuse)
-               + radiance * specular * highlight;
+               + radiance * specular * highlight + baseColor.rgb * effectLight(n);
     fragColor = vec4(color, baseColor.a);
 }

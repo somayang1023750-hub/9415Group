@@ -4,6 +4,25 @@ This file records the changes made to the starter code and explain why the issue
 
 
 
+## 2026-11-12 — Member A: corner recovery, impacts and Night effect lights
+
+- Raised Golem health to 14 (3.5x Zombie); retained damage 2, EXP 2, speed and
+  encounter curves. Enlarged its typed EXP drop from 0.14 to 0.25 half-extent.
+- Reproduced rare corner grazing where sampled path clearance accepted a route
+  movement rejected. Added continuous voxel sweeps, waypoint validation, safe
+  current-cell connection and no-progress replanning without teleportation.
+- Added Bullet debris, cyan/red Laser electrical contacts, radial Bomb bursts
+  and evolved Bomb red ground vortices. Kept all team weapon/progression rules.
+- Added weak, bounded Night impact/residue fill lights with distance/lifetime
+  fade. Day lighting and distant surfaces stay unchanged.
+- Preserved model instancing/normal-map attributes; particles use one dedicated
+  instanced pass and independent RNG, with paused/reset lifecycles.
+- Refreshed six obsolete baseline test cases and added actual unlock, separate
+  cooldown, evolution, navigation and effect/light coverage. Full app build and
+  all 43 tests pass; production-shader Day/Night GL/pixel checks pass.
+- Updated [A progress](docs/member-a-progress.md), [effects handoff](docs/member-a-effects.md)
+  and [validation](docs/member-a-validation.md). Windows/CSE replay remains open.
+
 ## 2026-11-12 — Member A: mixed Zombie/Golem/Spider encounters
 
 - Added exact typed HP/damage/EXP, distinct body extents/speeds and original

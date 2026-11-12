@@ -43,6 +43,7 @@ struct Enemy {
   float health = 4;
   std::optional<glm::vec3> waypoint;
   EnemyKind kind = EnemyKind::Zombie;
+  float blockedSeconds = 0;
 };
 struct Bullet {
   glm::vec3 position;
@@ -72,6 +73,8 @@ struct BurningArea {
 struct ExperienceOrb {
   glm::vec3 position;
   int value = 1;
+  // C: pickup appearance can depend on source without changing EXP/magnet rules.
+  EnemyKind sourceKind = EnemyKind::Zombie;
 };
 enum class Phase { Playing, ChoosingUpgrade, Won, Lost };
 struct HitEvent {
@@ -79,6 +82,15 @@ struct HitEvent {
   std::uint32_t enemyId;
   bool killed;
   Weapon weapon;
+};
+// Presentation-only impacts. One event per actual bullet/laser contact or
+// bomb detonation; evolved state is captured from the projectile at launch.
+struct ImpactEvent {
+  glm::vec3 position;
+  glm::vec3 direction;
+  Weapon weapon;
+  bool evolved = false;
+  float radius = 0;
 };
 struct ShotEvent {
   glm::vec3 position;
@@ -133,9 +145,12 @@ class Gameplay {
     return weapons_;
   }
   [[nodiscard]] int weaponCount(Weapon weapon) const;
-  // Frame-local events: C can trigger hit animation; A's M3 particles can
-  // consume position/weapon information. Read before the next update.
+  // C: frame-local hit/impact presentation events. Consume once before the next
+  // simulation update; impacts also include wall contacts and launch evolution.
   [[nodiscard]] const std::vector<HitEvent>& hits() const { return hits_; }
+  [[nodiscard]] const std::vector<ImpactEvent>& impacts() const {
+    return impacts_;
+  }
   [[nodiscard]] const std::vector<ShotEvent>& shots() const { return shots_; }
   // Frame-local enemy attacks: emitted when proximity damage is applied; read
   // before the next update, like hits() and shots().
@@ -167,6 +182,7 @@ class Gameplay {
   std::vector<Bullet> bullets_;
   std::vector<ExperienceOrb> orbs_;
   std::vector<HitEvent> hits_;
+  std::vector<ImpactEvent> impacts_;
   std::vector<ShotEvent> shots_;
   std::vector<EnemyAttackEvent> attacks_;
   std::vector<UpgradeChoice> choices_;

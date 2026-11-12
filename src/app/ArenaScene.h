@@ -7,6 +7,7 @@
 #include "app/FollowCamera.h"
 #include "app/PlayerController.h"
 #include "core/gameplay/Gameplay.h"
+#include "core/gameplay/ParticleEffects.h"
 #include "graphics/ArenaRenderer.h"
 #include "world/ArenaWorld.h"
 
@@ -58,6 +59,9 @@ class ArenaScene {
   [[nodiscard]] const FollowCamera& camera() const noexcept;
   [[nodiscard]] int worldVertexCount() const noexcept;
   [[nodiscard]] int worldDrawCallCount() const noexcept;
+  [[nodiscard]] int particleCount() const noexcept {
+    return static_cast<int>(effects_.visuals().size());
+  }
 
  private:
   struct EnemyRenderState {
@@ -73,6 +77,7 @@ class ArenaScene {
                       const MouseAimInput* aimInput);
 
   gameplay::Gameplay gameplay_;
+  gameplay::ParticleEffects effects_;
   world::ArenaLevel level_ = world::ArenaLevel::Day;
   world::ArenaWorld world_;
   PlayerController player_;

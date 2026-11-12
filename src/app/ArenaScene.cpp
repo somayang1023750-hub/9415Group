@@ -31,6 +31,7 @@ void ArenaScene::selectLevel(world::ArenaLevel level) {
 
 void ArenaScene::resetGameplay() {
   gameplay_.reset(level_);
+  effects_.reset();
   enemyRenderStates_.clear();
   if (!player_.setPosition(world_.playerSpawn(), world_))
     throw std::logic_error("Edited map blocks the player spawn");
@@ -71,11 +72,13 @@ void ArenaScene::updateInternal(const MovementInput& input, float deltaSeconds,
       const glm::mat4 viewProjection = camera_.viewProjection(
           player_.position(), aimInput->framebufferWidth,
           aimInput->framebufferHeight);
-      shotTarget = gameplay::aimOnPlane(
-          viewProjection, aimInput->x, aimInput->y, aimInput->windowWidth,
-          aimInput->windowHeight);
+      shotTarget =
+          gameplay::aimOnPlane(viewProjection, aimInput->x, aimInput->y,
+                               aimInput->windowWidth, aimInput->windowHeight);
     }
     gameplay_.update(deltaSeconds, player_.position(), world_, shotTarget);
+    effects_.update(deltaSeconds, gameplay_.impacts(),
+                    gameplay_.burningAreas());
   }
 
   const auto& enemies = gameplay_.enemies();
@@ -148,6 +151,8 @@ void ArenaScene::render(const graphics::Shader& shader, int framebufferWidth,
                         int framebufferHeight, bool normalMapping) const {
   const glm::mat4 viewProjection = camera_.viewProjection(
       player_.position(), framebufferWidth, framebufferHeight);
+  renderer_.setEffectLights(shader, level_ == world::ArenaLevel::Night,
+                            effects_.lights());
   renderer_.drawWorld(shader, viewProjection,
                       camera_.worldPosition(player_.position()), level_,
                       player_.position(), normalMapping);
@@ -214,29 +219,12 @@ void ArenaScene::render(const graphics::Shader& shader, int framebufferWidth,
   for (const auto& blast : gameplay_.explosions())
     renderer_.drawBlast(shader, viewProjection, blast.position, blast.radius,
                         blast.age);
-  for (const auto& area : gameplay_.burningAreas()) {
-    renderer_.drawBlast(shader, viewProjection, area.position, area.radius,
-                        0.0F);
-    for (int i = 0; i < 10; ++i) {
-      const float angle = i * 2.39996323F + area.age * 0.8F;
-      const float radialFraction = 0.22F + 0.16F * (i % 4);
-      const float radialDistance = area.radius * radialFraction;
-      const float rise =
-          0.08F + std::fmod(area.age * 1.8F + i * 0.27F, 0.72F);
-      const glm::vec3 particlePosition(
-          area.position.x + std::cos(angle) * radialDistance,
-          1.08F + rise,
-          area.position.z + std::sin(angle) * radialDistance);
-      const glm::vec3 particleColor = i % 2 == 0
-                                          ? glm::vec3(1.0F, 0.18F, 0.025F)
-                                          : glm::vec3(1.0F, 0.48F, 0.045F);
-      renderer_.drawProxy(shader, viewProjection, particlePosition,
-                          glm::vec3(0.035F), particleColor);
-    }
-  }
   for (const auto& orb : gameplay_.orbs())
-    renderer_.drawProxy(shader, viewProjection, orb.position, glm::vec3(0.14F),
-                        {0.2F, 1.0F, 0.3F});
+    renderer_.drawProxy(
+        shader, viewProjection, orb.position,
+        glm::vec3(orb.sourceKind == gameplay::EnemyKind::Golem ? .25F : .14F),
+        {0.2F, 1.0F, 0.3F});
+  renderer_.drawParticles(shader, viewProjection, effects_.visuals());
 }
 
 void ArenaScene::rebuildWorldGeometry() { renderer_.rebuildWorldMesh(world_); }

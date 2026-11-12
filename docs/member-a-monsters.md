@@ -1,24 +1,29 @@
 # Member A - mixed enemy encounters
 
 Updated: 2026-11-12 (Australia/Sydney). Built on team baseline `8c1a587`.
-This increment implements the approved monster request only. Weapon progression,
-weapon hit effects, B's levels/lighting and C's material/instance attribute
-contracts are retained.
+The first increment added the approved mixed encounters. The follow-up raises
+Golem health, fixes a reproduced corner-routing stall and adds larger Golem EXP
+drops. Weapon effects are documented in [hit effects](member-a-effects.md).
+B's levels/lighting and C's material/instance attribute contracts are retained.
 
 ## Enemy definitions
 
 | Kind | HP | Contact damage | Speed (blocks/s) | EXP |
 | --- | --- | --- | --- | --- |
 | Zombie | 4 | 1 | 3.3 | 1 |
-| Golem | 8 | 2 | 2.1 | 2 |
+| Golem | **14** | 2 | 2.1 | 2 |
 | Spider | **3.4** | 1 | 4.5 | 1 |
 
-The Golem has exactly twice Zombie health, damage and EXP. Spider HP is exactly
+The Golem has **3.5 times Zombie health**, twice its damage and twice its EXP.
+Spider HP is exactly
 `4 * 0.85`; enemy health is floating point rather than rounded. The player's
 current speed remains 5. The existing one-second player damage protection is
 shared across all attackers, preventing simultaneous crowd hits from bypassing
 invulnerability. A kill awards one orb with the typed EXP value (Golem value 2),
-not duplicate drops.
+not duplicate drops. The orb retains its source kind. Golem drops use a 0.25
+render half-extent versus 0.14 for other drops (about 1.8 times the width).
+Attraction/pickup distances and EXP values are unchanged; these are still cube
+proxies, not new sphere meshes.
 
 `EnemyTypes.h` is the shared source for kind, profile, geometry and spawn weights.
 The Golem is a wider stone biped with amber eyes and a slower walk. The Spider
@@ -60,6 +65,13 @@ introduced in this increment.
 - Persistent grid waypoints avoid the old turn-centre oscillation. BFS checks
   both tile occupancy and swept routes between tiles against other bodies.
   Stable per-ID direction order spreads equivalent routes around obstacles.
+- Voxel route checks now use continuous segment/slab tests against expanded
+  blocks, with the same edge tolerance as occupancy. The old 0.1-block sampling
+  could miss a tiny corner clip, repeatedly choosing a route that movement
+  rejected. Stale waypoints are validated before movement. Off-centre actors can
+  connect through their current free cell centre; a 0.35-second no-progress
+  check clears the waypoint and retries a safe route. Recovery never teleports
+  an actor or permits wall/actor penetration.
 - Direct approach targets stop outside the combined player/enemy footprint.
   Large Golems can approach a player near a wall without requiring the Golem to
   stand at the player's centre. Blocked paths replan; reachable nearer tiles
@@ -92,19 +104,22 @@ accept all three kinds. Rendering groups by kind and part: six instanced batches
 per biped kind and ten per Spider (head, body and eight legs), independent of
 actor count. Instance attributes 3-6 and normal attribute 7 remain unchanged.
 Debug geometry/draw counts reflect present kinds. Attack events and existing
-walk/facing snapshots drive the new poses; no new weapon effects are added.
+walk/facing snapshots drive the new poses. The separate particle instance VAO
+adds colour at attribute 8 without changing these model attributes.
 
 ## Validation and remaining limits
 
 - Full application CMake Release build passed on Linux/GCC 14.2.
-- **12 new enemy test cases passed**, covering exact ratios, time curves,
+- **13 enemy test cases passed**, covering exact ratios, time curves,
   weighted generation, typed clearance, damage/invulnerability, fractional HP,
   rewards, mixed crowd routing, wall-adjacent approach, pause/reset, both real
-  maps' entry compatibility, the cap and water slowdown.
-- CPU suite: **34 cases, 28 passed, 6 failed**. These are the same six baseline
-  failures identified before this change: old weapon profile/hit-count/bomb/
-  piercing expectations, old 4.3 enemy speed and old 26-high camera assertion.
-  They are not hidden, disabled or rewritten as part of this monster-only task.
+  maps' entry compatibility, the cap, water slowdown and corner-grazing recovery
+  across all three body types. Every movement step checks clearance and speed.
+- Current suite: **43 cases passed**. The earlier monster-only delivery recorded
+  28/34 passing: six tests still asserted obsolete weapon, speed and camera rules.
+  The follow-up refreshes those expectations and adds real weapon-unlock,
+  independent-cooldown, progression/evolution and particle coverage. Tests are
+  neither disabled nor used to revert the team's current weapon design.
 - A separate OpenGL harness staged all three models in Day and Night, rendered
   production shaders/lighting and instanced meshes without GL errors, and checked
   level/reset state. Screenshots inspected. Spiders staged in the Day rendering
@@ -113,5 +128,5 @@ walk/facing snapshots drive the new poses; no new weapon effects are added.
   hardware performance evidence or a baseline/instancing comparison.
 
 Manual Windows playtesting, full three-minute balance acceptance and CSE/VLAB
-validation remain open. Weapon hit-particle completion and the baseline test
-refresh remain separate pending tasks as requested.
+validation remain open. See [validation and replay](member-a-validation.md) for
+the current evidence and the exact explanation of the superseded assertions.

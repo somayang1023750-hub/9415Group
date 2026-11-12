@@ -21,7 +21,7 @@ struct EnemyProfile {
 inline EnemyProfile enemyProfile(EnemyKind kind) {
   switch (kind) {
     case EnemyKind::Golem:
-      return {8.F, 2, 2, 2.1F, {.37F, .43F, .37F}, 1.442F};
+      return {14.F, 2, 2, 2.1F, {.37F, .43F, .37F}, 1.442F};
     case EnemyKind::Spider:
       return {4.F * .85F, 1, 1, 4.5F, {.22F, .20F, .24F}, 1.212F};
     default:

@@ -171,11 +171,16 @@ int main() {
       const int proxyCount =
           static_cast<int>(arenaScene.gameplay().bullets().size() +
                            arenaScene.gameplay().orbs().size());
-      uiDiagnostics.renderedTriangles += proxyCount * 12;
+      int trailParts = 0;
+      for (const auto& b : arenaScene.gameplay().bullets())
+        if (b.weapon == craft::gameplay::Weapon::Bomb && b.evolved)
+          trailParts += 4;
+      uiDiagnostics.renderedTriangles +=
+          (proxyCount + trailParts + arenaScene.particleCount()) * 12;
       uiDiagnostics.drawCalls =
           arenaScene.worldDrawCallCount() +
           craft::graphics::ArenaRenderer::kPlayerPartCount + enemyDrawCalls +
-          proxyCount +
+          proxyCount + trailParts + (arenaScene.particleCount() > 0 ? 1 : 0) +
           static_cast<int>(arenaScene.gameplay().explosions().size());
       uiDiagnostics.framebufferWidth = framebufferWidth;
       uiDiagnostics.framebufferHeight = framebufferHeight;
