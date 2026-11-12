@@ -1,188 +1,162 @@
-// Report-only staging. All models, impacts, fire and UI use production code.
+// Interactive training range. Real ArenaScene updates/rendering and collision.
 #include <algorithm>
+#include <array>
 #include <cmath>
 #include <filesystem>
 #include <iostream>
-#include <string>
 #include <stdexcept>
+#include <string>
 #include <vector>
-#include <glm/ext/matrix_clip_space.hpp>
-#include <glm/ext/matrix_transform.hpp>
-#include <glm/geometric.hpp>
 #include "graphics/OpenGL.h"
 #define GLFW_INCLUDE_NONE
 #include <GLFW/glfw3.h>
 #include <stb_image_write.h>
 #include "app/AppUi.h"
-#include "app/GameplayUi.h"
+#include "app/ArenaScene.h"
 #include "core/AssetPath.h"
-#include "core/gameplay/ParticleEffects.h"
-#include "graphics/ArenaRenderer.h"
 #include "graphics/Shader.h"
 #include "graphics/Window.h"
 #include "imgui.h"
-#include "world/ArenaWorld.h"
 using namespace craft;
 
-static gameplay::Gameplay uiFixture(int mode, const world::ArenaWorld& world) {
-  gameplay::Gameplay game(5);
-  const glm::vec3 player(16, gameplay::kActorCentreY, 16);
-  if (mode == 1) {
-    // Reach the real upgrade phase through kills and EXP collection.
-    for (int k=0;k<3;++k) {
-      const int kills=game.stats().kills;
-      if (!game.spawnEnemy({16,1.45F,20.5F},player,world,gameplay::EnemyKind::Spider))
-        throw std::runtime_error("Cannot prepare upgrade fixture");
-      for(int f=0;f<500 && game.stats().kills==kills;++f)
-        game.update(.01F,player,world,game.enemies().front().position);
-      if (game.orbs().empty()) throw std::runtime_error("Fixture did not drop EXP");
-      const auto pickup=game.orbs().front().position;
-      game.update(.01F,pickup,world);
-    }
-  } else if (mode==2) {
-    for(int f=0;f<1810;++f) game.update(.1F,player,world);
-  } else {
-    game.spawnEnemy({16,1.45F,22},player,world);
-    for(int f=0;f<300 && game.stats().phase==gameplay::Phase::Playing;++f)
-      game.update(.1F,player,world);
-  }
-  const auto expected=mode==1?gameplay::Phase::ChoosingUpgrade:mode==2?gameplay::Phase::Won:gameplay::Phase::Lost;
-  if(game.stats().phase!=expected)throw std::runtime_error("UI fixture failed to reach real phase");
-  return game;
+static void prepare(app::ArenaScene& scene) {
+  world::ArenaLayout layout;
+  layout.playerSpawn={16,1.45F,18.5F};
+  layout.obstacles={{12,13,1,11,2},{21,14,1,6,2},{15,12,4,1,2},{17,21,3,1,2}};
+  scene.world()=world::ArenaWorld(layout);scene.rebuildWorldGeometry();
+  scene.gameplay().setShowcaseEnabled(true);scene.resetGameplay();
+  const std::array<glm::vec3,5> points={glm::vec3(13.5F,1.45F,13.8F),
+    glm::vec3(13.5F,1.45F,22),glm::vec3(16,1.45F,13.3F),
+    glm::vec3(1.3F,1.45F,7),glm::vec3(30.6F,1.45F,25)};
+  const std::array<gameplay::EnemyKind,5> kinds={gameplay::EnemyKind::Zombie,
+    gameplay::EnemyKind::Golem,gameplay::EnemyKind::Spider,
+    gameplay::EnemyKind::Zombie,gameplay::EnemyKind::Golem};
+  for(std::size_t i=0;i<points.size();++i)
+    if(!scene.gameplay().spawnEnemy(points[i],scene.player().position(),scene.world(),kinds[i]))
+      throw std::runtime_error("Training target is not clear of geometry/player");
 }
-static void capture(int w,int h,int figure) {
+static void capture(int w,int h) {
   if(w<=0 || h<=0) return;
   std::vector<unsigned char> pixels(static_cast<std::size_t>(w)*h*3);
   glPixelStorei(GL_PACK_ALIGNMENT,1);
   glReadPixels(0,0,w,h,GL_RGB,GL_UNSIGNED_BYTE,pixels.data());
   stbi_flip_vertically_on_write(1);
   std::filesystem::create_directories("member-a-captures");
-  const auto file="member-a-captures/figure-"+std::to_string(figure)+"-"+
+  const auto file="member-a-captures/range-"+
     std::to_string(static_cast<long long>(glfwGetTime()*1000))+".png";
   if(!stbi_write_png(file.c_str(),w,h,3,pixels.data(),w*3))
     throw std::runtime_error("PNG capture failed");
   std::cout<<"Saved "<<file<<'\n';
 }
+
 int main(int argc,char** argv) try {
   const bool smoke=argc>1 && std::string(argv[1])=="--smoke";
-  graphics::Window window(1280,720,"Member A - production model/effect showcase");
+  graphics::Window window(1280,720,"Member A - interactive training range");
   graphics::Shader shader(core::assetPath("shaders/basic.vert"),core::assetPath("shaders/basic.frag"));
-  world::ArenaLayout layout; // No autonomous spawning or gameplay difficulty changes.
-  world::ArenaWorld world(layout);
-  graphics::ArenaRenderer renderer(world,core::assetPath("textures/player.png"),
-    core::assetPath("textures/zombie.png"),core::assetPath("textures/sand_noise_uv.png"));
-  app::AppUi ui(window); ImGui::GetIO().IniFilename=nullptr;
-  gameplay::ParticleEffects fx;
-  auto preview=uiFixture(1,world);
-  int figure=1,uiMode=1,frames=0; bool night=false,paused=false,controls=true;
-  float clock=0,modelYaw=.35F; double last=glfwGetTime(); bool wasCapture=false,wasHide=false; int lastKey=0;
-  glEnable(GL_DEPTH_TEST);
+  app::ArenaScene scene(core::assetPath("textures/player.png"),core::assetPath("textures/zombie.png"),core::assetPath("textures/sand_noise_uv.png"));
+  prepare(scene);const auto initial=scene.gameplay().enemies();
+  app::AppUi ui(window);ImGui::GetIO().IniFilename=nullptr;
+  bool paused=false,autoPause=false,controls=true,night=false;
+  std::array<bool,3> owned={true,false,false},evolved={false,false,false};
+  std::array<int,3> upgrades={0,0,0};int selected=0,frames=0;
+  std::array<bool,GLFW_KEY_LAST+1> oldKeys{};
+  auto pressed=[&](int key) {bool down=glfwGetKey(window.nativeHandle(),key)==GLFW_PRESS;
+    bool edge=down&&!oldKeys[key];oldKeys[key]=down;return edge;};
+  auto apply=[&](int i) {if(!scene.gameplay().configureShowcaseWeapon(static_cast<gameplay::Weapon>(i),owned[i],upgrades[i],evolved[i]))
+    throw std::runtime_error("Invalid range weapon setting");};
+  glEnable(GL_DEPTH_TEST);double previous=glfwGetTime();
+  float frozenTime=-1;bool sawImpact=false,sawFire=false;
+  std::vector<gameplay::Bullet> frozenBullets;std::vector<gameplay::BurningArea> frozenFire;
   while(!window.shouldClose()) {
-    window.pollEvents();const auto now=glfwGetTime();
-    const float dt=std::min(.05F,static_cast<float>(now-last));last=now;
-    if(smoke) { figure=1+frames/32; night=frames%32>=16; if(frames%32==0){clock=0;fx.reset();} }
-    const bool hide=glfwGetKey(window.nativeHandle(),GLFW_KEY_H)==GLFW_PRESS;
-    if(hide && !wasHide) controls=!controls; wasHide=hide;
-    int key=0;
-    for(int i=0;i<4;++i)if(glfwGetKey(window.nativeHandle(),GLFW_KEY_F1+i)==GLFW_PRESS)key=1+i;
-    if(glfwGetKey(window.nativeHandle(),GLFW_KEY_U)==GLFW_PRESS)key=5;
-    if(glfwGetKey(window.nativeHandle(),GLFW_KEY_V)==GLFW_PRESS)key=6;
-    if(glfwGetKey(window.nativeHandle(),GLFW_KEY_D)==GLFW_PRESS)key=7;
-    if(key && key!=lastKey) {
-      if(key<=4)figure=key;
-      else {figure=2;uiMode=key-4;preview=uiFixture(uiMode,world);}
-      clock=0;fx.reset();
-    }
-    lastKey=key;
-    bool step=false,freezeHit=false;
+    window.pollEvents();const double now=glfwGetTime();
+    const float dt=std::clamp(static_cast<float>(now-previous),0.F,.1F);previous=now;
     ui.beginFrame();
-    // Leave real modal pages cleanly when switching back to a capture scene.
-    if(figure!=2)for(const char* name:{"LEVEL UP - Choose an upgrade","VICTORY - Arena survived","DEFEAT - Run ended"})
-      if(ImGui::IsPopupOpen(name) && ImGui::BeginPopupModal(name)) {
-        ImGui::CloseCurrentPopup();ImGui::EndPopup();
-      }
+    if(pressed(GLFW_KEY_SPACE))paused=!paused;
+    if(pressed(GLFW_KEY_H))controls=!controls;
+    if(pressed(GLFW_KEY_F))autoPause=!autoPause;
+    bool step=pressed(GLFW_KEY_N)&&paused;
+    for(int i=0;i<3;++i)if(pressed(GLFW_KEY_1+i)) {
+      selected=i;for(int j=0;j<3;++j){owned[j]=j==i;apply(j);}
+    }
+    if(pressed(GLFW_KEY_U)) {owned[selected]=true;if(upgrades[selected]<4)++upgrades[selected];else evolved[selected]=true;apply(selected);}
+    if(pressed(GLFW_KEY_E)) {owned[selected]=true;upgrades[selected]=4;evolved[selected]=true;apply(selected);}
     if(controls) {
-      ImGui::Begin("Report capture controls");
-      ImGui::TextUnformatted("Staged evidence; production rendering and effect parameters.");
-      for(int i=1;i<=4;++i) {
-        if(i>1) ImGui::SameLine();
-        const auto name="Figure "+std::to_string(i);
-        if(ImGui::Button(name.c_str())) { figure=i;clock=0;fx.reset(); }
-      }
-      ImGui::Checkbox("Night lighting",&night);ImGui::SameLine();ImGui::Checkbox("Pause",&paused);
-      ImGui::SliderFloat("Model yaw",&modelYaw,-3.14F,3.14F);
-      if(ImGui::Button("Replay effects")) { clock=0;fx.reset();step=true; }
-      ImGui::SameLine(); if(ImGui::Button("Step 0.02 s")){paused=true;step=true;}
-      if(ImGui::Button("Freeze hit for Figure 3")){figure=3;clock=0;fx.reset();paused=true;step=true;freezeHit=true;}
-      if(figure==2) {
-        const char* names[]={"Upgrade","Victory","Defeat"};
-        for(int i=1;i<=3;++i) { if(i>1)ImGui::SameLine(); if(ImGui::Button(names[i-1])) { uiMode=i;preview=uiFixture(i,world); } }
-      }
-      ImGui::TextUnformatted("F1-F4: figure | U/V/D: upgrade/win/loss | H: hide | F12: PNG");
-      ImGui::End();
-    }
-    auto size=window.framebufferSize();
-    if(size.first<=0 || size.second<=0) { ui.render();window.swapBuffers();continue; }
-    const glm::vec3 centre(16,1.3F,16),eye=centre+glm::vec3(0,6,9);
-    const float aspect=static_cast<float>(size.first)/size.second;
-    const float half=figure==1?2.3F:4.6F;
-    const auto vp=glm::ortho(-half*aspect,half*aspect,-half,half,.1F,70.F)*
-      glm::lookAt(eye,centre,glm::vec3(0,1,0));
-    float previous=clock;
-    const float tick=smoke?.04F:step?.02F:dt;
-    if(!paused || step)clock+=tick;
-    if(clock>=4.2F) {clock=0;previous=-1;fx.reset();}
-    std::vector<gameplay::ImpactEvent> events;
-    std::vector<gameplay::BurningArea> areas;
-    if(figure==3 && previous<=0 && clock>0)
-      for(int i=0;i<3;++i) events.push_back({centre+glm::vec3((i-1)*3.F,0,0),{1,0,0},
-        i==0?gameplay::Weapon::Bullet:gameplay::Weapon::Laser,i==2});
-    const auto bombProfile=gameplay::weaponProfile(gameplay::Weapon::Bomb,4);
-    const float flight=.7F;
-    if(figure==4 && clock>=flight) {
-      if(previous<flight)events.push_back({centre,{0,1,0},gameplay::Weapon::Bomb,true,bombProfile.blastRadius});
-      if(clock-flight<3) areas.push_back({centre,bombProfile.blastRadius,clock-flight});
-    }
-    if(!paused || step)fx.update(tick,events,areas);
-    if(freezeHit){fx.update(.05F,{},areas);clock+=.05F;}
-    glViewport(0,0,size.first,size.second);glClearColor(.06F,.07F,.09F,1);
-    glClear(GL_COLOR_BUFFER_BIT|GL_DEPTH_BUFFER_BIT);
-    renderer.setEffectLights(shader,night,fx.lights());
-    renderer.drawWorld(shader,vp,eye,night?world::ArenaLevel::Night:world::ArenaLevel::Day,centre,true);
-    if(figure==1) {
-      std::vector<graphics::ArenaRenderer::ZombieInstance> models;
+      ImGui::Begin("Training range");
+      ImGui::TextUnformatted("WASD move | Mouse aim | Hold left mouse to fire");
+      ImGui::TextUnformatted("SPACE: time stop/resume | N: advance 1/60 second");
+      ImGui::TextUnformatted("1/2/3: solo weapon | U: upgrade | E: evolve");
+      ImGui::Text("Selected weapon: %s",gameplay::weaponName(static_cast<gameplay::Weapon>(selected)));
+      ImGui::Checkbox("Time stopped",&paused);
+      if(ImGui::Button("Step 1/60 s")){paused=true;step=true;}
+      ImGui::Checkbox("Auto-stop on actual impact (F)",&autoPause);
+      if(ImGui::Checkbox("Night lighting",&night))
+        scene.setShowcaseLighting(night?world::ArenaLevel::Night:world::ArenaLevel::Day);
       for(int i=0;i<3;++i) {
-        const auto kind=static_cast<gameplay::EnemyKind>(i);
-        models.push_back({{16+(i-1)*2.6F,gameplay::enemyProfile(kind).centreY,16},modelYaw,0,false,-1,kind});
+        ImGui::PushID(i);ImGui::Separator();
+        ImGui::TextUnformatted(gameplay::weaponName(static_cast<gameplay::Weapon>(i)));
+        bool changed=ImGui::Checkbox("Owned / fire",&owned[i]);
+        if(ImGui::SliderInt("Upgrade stage",&upgrades[i],0,4)){evolved[i]=false;changed=true;}
+        if(ImGui::Checkbox("Evolved",&evolved[i])){if(evolved[i])upgrades[i]=4;changed=true;}
+        if(changed)apply(i);ImGui::PopID();
       }
-      renderer.drawZombies(shader,vp,models);
+      if(ImGui::Button("Reset range (clear all effects)")) {
+        prepare(scene);owned={true,false,false};upgrades={0,0,0};evolved={false,false,false};frozenTime=-1;
+      }
+      ImGui::TextUnformatted("Five stationary, invulnerable targets. No waves or countdown.");
+      ImGui::TextUnformatted("H: hide controls | F12: PNG | ESC: exit");ImGui::End();
     }
-    if(figure==4 && clock<flight) {
-      gameplay::Bullet bomb{centre+glm::vec3((clock-flight)*bombProfile.bulletSpeed,0,0),{bombProfile.bulletSpeed,0,0},3-clock,bombProfile.baseDamage,gameplay::Weapon::Bomb};
-      bomb.evolved=true;
-      renderer.drawProxy(shader,vp,bomb.position,glm::vec3(.22F),{1,.12F,.06F},1.5708F,true);
-      renderer.drawFirebombTrail(shader,vp,bomb); // Exact same helper as ArenaScene.
+    const auto size=window.framebufferSize();
+    if(size.first<=0||size.second<=0){ui.render();window.swapBuffers();continue;}
+    if(smoke) {
+      autoPause=frames<110;
+      if(frames==110){paused=false;owned={false,false,true};upgrades={0,0,4};evolved={false,false,true};for(int i=0;i<3;++i)apply(i);}
+      if(frames==145)paused=true;
+      if(frames==160)paused=false;
     }
-    for(const auto& a:areas)renderer.drawBlast(shader,vp,a.position,a.radius,0);
-    for(const auto& p:fx.groundFire())renderer.drawProxy(shader,vp,p.position,p.halfExtents,glm::vec3(p.color));
-    renderer.drawParticles(shader,vp,fx.visuals());
-    auto label=[&](glm::vec3 p,const char* text) {
-      auto clip=vp*glm::vec4(p,1);clip/=clip.w;
-      auto width=ImGui::CalcTextSize(text).x;
-      ImGui::GetBackgroundDrawList()->AddText({(clip.x+1)*size.first*.5F-width*.5F,(1-clip.y)*size.second*.5F},IM_COL32_WHITE,text);
-    };
-    if(figure==1) {label(centre+glm::vec3(-2.6F,-.6F,1),"Zombie");label(centre+glm::vec3(0,-.6F,1),"Golem");label(centre+glm::vec3(2.6F,-.6F,1),"Spider");}
-    if(figure==3) {label(centre+glm::vec3(-3,-.5F,1),"Bullet debris");label(centre+glm::vec3(0,-.5F,1),"Laser: cyan");label(centre+glm::vec3(3,-.5F,1),"Evolved Laser: red");}
-    if(smoke && figure==2 && frames%32==12)preview=uiFixture(2,world);
-    if(smoke && figure==2 && frames%32==24)preview=uiFixture(3,world);
-    if(figure==2 && app::drawGameplayUi(preview))preview=uiFixture(uiMode,world);
+    if(!paused || step) {
+      const float tick=step?1.F/60.F:smoke?.02F:dt;
+      if(smoke)scene.update({},tick,initial[frames<110?0:1].position);
+      else {
+        app::MovementInput input{};
+        if(!ImGui::GetIO().WantCaptureKeyboard)input={glfwGetKey(window.nativeHandle(),GLFW_KEY_W)==GLFW_PRESS,
+          glfwGetKey(window.nativeHandle(),GLFW_KEY_S)==GLFW_PRESS,glfwGetKey(window.nativeHandle(),GLFW_KEY_A)==GLFW_PRESS,
+          glfwGetKey(window.nativeHandle(),GLFW_KEY_D)==GLFW_PRESS};
+        if(glfwGetMouseButton(window.nativeHandle(),GLFW_MOUSE_BUTTON_LEFT)==GLFW_PRESS && !ImGui::GetIO().WantCaptureMouse) {
+          double x,y;int w,h;glfwGetCursorPos(window.nativeHandle(),&x,&y);glfwGetWindowSize(window.nativeHandle(),&w,&h);
+          scene.updateFromMouse(input,tick,{x,y,w,h,size.first,size.second});
+        } else scene.update(input,tick);
+      }
+      if(!scene.gameplay().impacts().empty()) {sawImpact=true;if(autoPause)paused=true;}
+    }
+    if(smoke) {
+      const auto& game=scene.gameplay();
+      if(game.enemies().size()!=initial.size())throw std::runtime_error("Target count changed");
+      for(std::size_t i=0;i<initial.size();++i)
+        if(game.enemies()[i].position!=initial[i].position || game.enemies()[i].health!=initial[i].health)
+          throw std::runtime_error("Target moved or lost health");
+      if(paused && !step) {
+        if(frozenTime>=0) {
+          if(game.elapsedSeconds()!=frozenTime || game.bullets().size()!=frozenBullets.size() || game.burningAreas().size()!=frozenFire.size())
+            throw std::runtime_error("Frozen simulation changed");
+          for(std::size_t i=0;i<frozenBullets.size();++i)
+            if(game.bullets()[i].position!=frozenBullets[i].position || game.bullets()[i].life!=frozenBullets[i].life)
+              throw std::runtime_error("Frozen projectile changed");
+          for(std::size_t i=0;i<frozenFire.size();++i)
+            if(game.burningAreas()[i].age!=frozenFire[i].age)throw std::runtime_error("Frozen fire advanced");
+        }
+        frozenTime=game.elapsedSeconds();frozenBullets=game.bullets();frozenFire=game.burningAreas();
+      } else frozenTime=-1;
+      sawFire|=!game.burningAreas().empty();
+    }
+    glViewport(0,0,size.first,size.second);glClearColor(.06F,.07F,.09F,1);glClear(GL_COLOR_BUFFER_BIT|GL_DEPTH_BUFFER_BIT);
+    scene.render(shader,size.first,size.second,true);
+    if(paused)ImGui::GetForegroundDrawList()->AddText({size.first*.5F-50,16},IM_COL32(255,220,80,255),"TIME STOPPED");
     ui.render();
-    const bool shot=glfwGetKey(window.nativeHandle(),GLFW_KEY_F12)==GLFW_PRESS;
-    if((shot && !wasCapture) || (smoke && (frames%32==2 || frames%32==14 || frames%32==26))) capture(size.first,size.second,figure);
-    wasCapture=shot;
+    if(pressed(GLFW_KEY_F12) || (smoke&&(frames==80||frames==145||frames==150)))capture(size.first,size.second);
     if(glGetError()!=GL_NO_ERROR)throw std::runtime_error("OpenGL error");
     window.swapBuffers();
-    if(smoke && ++frames>=128)window.requestClose();
+    if(smoke&&++frames>=240){if(!sawImpact||!sawFire)throw std::runtime_error("Smoke missed collision/fire");window.requestClose();}
   }
+  if(smoke)std::cout<<"PASS: real contacts, invulnerable stationary targets, frozen projectiles/fire and resume\n";
   return 0;
-} catch(const std::exception& e) {std::cerr<<e.what()<<'\n';return 1;}
+} catch(const std::exception& e){std::cerr<<e.what()<<'\n';return 1;}

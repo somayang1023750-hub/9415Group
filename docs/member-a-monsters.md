@@ -134,7 +134,7 @@ adds colour at attribute 8 without changing these model attributes.
   Both fail against the previous navigation code: one records eight repeated
   reversals; the other moves a full 0.09 blocks while it should be waiting.
   Both pass now, with per-step clearance, speed and no-overlap checks retained.
-- Current suite: **48 cases passed**. The earlier monster-only delivery recorded
+- Current suite: **49 cases passed**. The earlier monster-only delivery recorded
   28/34 passing: six tests still asserted obsolete weapon, speed and camera rules.
   The follow-up refreshes those expectations and adds real weapon-unlock,
   independent-cooldown, progression/evolution and particle coverage. Tests are

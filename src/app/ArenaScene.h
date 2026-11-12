@@ -43,6 +43,10 @@ class ArenaScene {
                        const MouseAimInput& aimInput);
   void resetGameplay();
   void selectLevel(world::ArenaLevel level);
+  // Report-range lighting only; never changes/restarts the live normal game.
+  void setShowcaseLighting(world::ArenaLevel level) {
+    if (gameplay_.showcaseEnabled()) level_ = level;
+  }
   [[nodiscard]] world::ArenaLevel level() const noexcept { return level_; }
   [[nodiscard]] gameplay::Gameplay& gameplay() noexcept { return gameplay_; }
   [[nodiscard]] const gameplay::Gameplay& gameplay() const noexcept {

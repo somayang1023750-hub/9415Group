@@ -122,6 +122,10 @@ struct Stats {
 class Gameplay {
  public:
   explicit Gameplay(std::uint32_t seed = 9415);
+  // Explicitly opt-in report range. Normal game instances never enable this.
+  void setShowcaseEnabled(bool enabled) { showcase_ = enabled; }
+  [[nodiscard]] bool showcaseEnabled() const { return showcase_; }
+  bool configureShowcaseWeapon(Weapon weapon, bool owned, int upgrades, bool evolved);
   void reset();
   void reset(world::ArenaLevel level);
   [[nodiscard]] world::ArenaLevel level() const { return level_; }
@@ -182,6 +186,7 @@ class Gameplay {
   void explode(const glm::vec3& position, int damage, float blastRadius,
                bool firebomb);
   world::ArenaLevel level_ = world::ArenaLevel::Day;
+  bool showcase_ = false;
   Stats stats_;
   std::vector<Enemy> enemies_;
   std::vector<Explosion> explosions_;

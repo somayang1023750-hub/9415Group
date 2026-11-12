@@ -7,7 +7,7 @@ Updated: 2026-11-12 (Australia/Sydney). Current follow-up builds on `e32b7cf`.
 | Check | Recorded outcome | Limit |
 | --- | --- | --- |
 | Full C++17 application build | Passed, Linux Release / GCC 14.2 | Not a Windows or CSE result |
-| Current regression suite | 48 cases passed: 17 gameplay, 17 enemy, eight particle, five world, one math | CPU checks do not replace visual/balance acceptance |
+| Current regression suite | 49 cases passed: 17 gameplay, 17 enemy, eight particle, five world, one math, one training-range isolation case | CPU checks do not replace visual/balance acceptance |
 | Automatic spawn safety | Six-block body-edge exclusion tested in Day/Night, including unsafe fallbacks, no safe entries, moving onto an old entry and accepting a position inside the former eight-block zone | Explicit fixture staging retains the old four-block minimum |
 | Crowd stability | 36 side-by-side configurations plus stationary/following queue passed; both new cases fail with the previous navigation implementation | Occasional legitimate turns and physical queues remain expected |
 | Corner-grazing regression | All three kinds and multiple edge offsets reach the target; every step checks clearance and speed | Crowded lanes may still queue physically |

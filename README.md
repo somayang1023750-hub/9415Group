@@ -54,7 +54,7 @@ src/app/            ArenaScene, FollowCamera, PlayerController, AppUi, and bench
 src/core/           Asset lookup and CPU-only gameplay/geometry/aim systems
 src/graphics/       ArenaRenderer, window, shader, texture, and text renderer
 src/world/          32 x 32 x 32 block grid and collision queries
-tests/              Optional Catch2/CTest suite (48 current cases)
+tests/              Optional Catch2/CTest suite (49 current cases)
 ```
 
 Implementation files under the existing source directories are automatically
@@ -158,7 +158,7 @@ proximity-damage attack for presentation consumers and clears it on the next
 simulation update.
 Interface comments and [A's handoff](docs/member-a-progress.md)
 describe coordinate conventions and integration boundaries. Weapon styles use
-particles rather than separate weapon models. All 48 current tests pass; the
+particles rather than separate weapon models. All 49 current tests pass; the
 [validation guide](docs/member-a-validation.md) explains the six obsolete test
 cases refreshed in this follow-up.
 

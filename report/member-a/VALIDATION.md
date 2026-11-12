@@ -1,20 +1,18 @@
-# Capture workspace verification
+# Interactive training range verification
 
-- Based on gameplay revision 2a5ea68; Word descriptions reference this gameplay
-  baseline. This increment adds a report capture target and extracts a shared
-  original trail helper; it does not redesign game particles or models.
-- Full Linux C++17 Release builds: Craft, MemberAShowcase and craft_tests passed.
-- All 48 CTest cases passed after the shared-helper extraction.
-- Xvfb/Mesa `MemberAShowcase --smoke` passed: 128 frames covering the four pages,
-  Day/Night lighting, actual upgrade/victory/defeat phases, PNG output and GL error
-  checks. Captures were visually inspected for models, impacts, fire and UI.
-- Fixture phase setup asserts the actual Gameplay phase. UI is not an imitation.
-- The trail helper body matches the previous ArenaScene block after changing only
-  the receiver name and the equivalent Bomb condition. Ground fire and impact
-  emitters are called directly from production ParticleEffects.
-- Word preserves original teammate paragraphs, tables and images except the
-  particle section explicitly authorized for rewriting. A1–A5 image/code slots
-  remain for the user's final captures; the original teammate Figure 1/2 labels
-  are retained without renumbering them.
-- No current Windows execution or comparative hardware-performance result is
-  claimed. Build on Windows using build_windows.cmd or the documented CMake flag.
+This replaces the earlier staged figure/UI replay executable. Normal Craft never
+enables Gameplay's explicit range option. The range opts in to stationary,
+invulnerable targets, disabled automatic spawning and disabled survival timeout.
+Its weapon controls use normal profiles and do not mutate existing projectiles.
+
+CPU coverage verifies opt-in gating, actual impact/fire events, fixed enemy
+positions/health, no kills/EXP/spawn waves or countdown, reset and normal defaults.
+OpenGL smoke exercises actual ArenaScene collision/fire, time stop and resume,
+frozen projectile position/lifetime and burning-area ages, PNG capture and GL
+error checks. Windows requires rebuilding the same MemberAShowcase target.
+
+Full Linux C++17 Release builds of Craft and MemberAShowcase passed, with all
+49 CTest cases passing. The 240-frame Xvfb/Mesa range smoke verified real impacts,
+unchanged target position/health, frozen projectile lifetimes/fire ages, resume,
+PNG output and GL error checks. The visible world region also remains identical
+between frozen fire captures (the control checkbox updates on the next UI frame).

@@ -4,6 +4,19 @@ This file records the changes made to the starter code and explain why the issue
 
 
 
+## 2026-11-12 — Member A: replace staged pages with an interactive range
+
+- Replaced MemberAShowcase's replay/UI pages with a playable ArenaScene range.
+  Five invulnerable, stationary models sit next to cover/outer walls; normal
+  movement, aiming, actual projectile collisions and effects are retained.
+- Added free per-weapon unlock/stage/evolution controls, SPACE time stop, N
+  single stepping, F auto-stop on real impacts and PNG capture. Time stop skips
+  all scene updates and retains existing collision/fire snapshots.
+- Training-only rules are explicitly opt-in: no waves, contact attacks, target
+  health loss or survival countdown. Default Craft instances keep normal rules.
+- Normal game/range builds and 49 tests pass; live range smoke checks actual
+  contacts, stationary health, frozen projectiles/fire, resume and GL rendering.
+
 ## 2026-11-12 — Member A: report capture workspace
 
 - Added optional MemberAShowcase target and report/member-a with the revised Word

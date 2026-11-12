@@ -144,7 +144,7 @@ screen, textured player, WASD, ImGui lifecycle and benchmark also predate A.
 
 ## Verification and remaining acceptance
 
-Current Linux C++17 Release application build and all **48 regression cases**
+Current Linux C++17 Release application build and all **49 regression cases**
 pass. Coverage includes three typed bodies, encounter ramps, corner recovery,
 automatic spawn safety, real unlocks and independent cooldowns, all weapon upgrades/evolutions, particles,
 lights, reset and pause. Six earlier failures came from tests retaining obsolete
@@ -176,9 +176,11 @@ team. Build steps and replay actions are in the linked validation guide.
 The present follow-up supplies the Golem rebalance, corner fix, hit effects,
 Night glow, larger drops and refreshed regression coverage described above.
 
-## Report capture workspace
+## Interactive capture range
 
-See [report/member-a](../report/member-a/README.md) for the optional production-source
-showcase, revised Member A Word report and numbered code excerpts for Figures A1–A5.
-It stages evidence capture; it is not gameplay or benchmark evidence. The original
-trail now uses a helper shared by ArenaScene and the showcase, with unchanged formulas.
+[report/member-a](../report/member-a/README.md) now contains a playable stationary,
+invulnerable target range, replacing the earlier figure/UI replay pages. It uses
+real ArenaScene movement/collision/effects with free weapon levels, SPACE time
+stop, N stepping and F auto-stop on contact. Training-only rules require explicit
+opt-in; normal Craft gameplay is unchanged. The report/source reference files
+remain, with capture instructions updated for the new range.

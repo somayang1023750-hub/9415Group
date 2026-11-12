@@ -89,6 +89,31 @@ bool Gameplay::spawnEnemy(const glm::vec3& metadata, const glm::vec3& player,
   enemies_.push_back({nextId_++, p, profile.health, std::nullopt, kind});
   return true;
 }
+bool Gameplay::configureShowcaseWeapon(Weapon weapon, bool owned, int upgrades,
+                                       bool evolved) {
+  if (!showcase_ || upgrades < 0 || upgrades > 4 ||
+      (evolved && upgrades != 4) ||
+      (weapon != Weapon::Bullet && weapon != Weapon::Laser &&
+       weapon != Weapon::Bomb))
+    return false;
+  for (std::size_t i = 0; i < weapons_.size(); ++i) {
+    if (weapons_[i].weapon != weapon) continue;
+    if (!owned) {
+      weapons_.erase(weapons_.begin() + i);
+      weaponShotClocks_.erase(weaponShotClocks_.begin() + i);
+    } else {
+      weapons_[i] = {weapon, upgrades, evolved};
+      weaponShotClocks_[i] = std::min(
+          weaponShotClocks_[i], weaponProfile(weapon, upgrades).shotCooldown);
+    }
+    return true;
+  }
+  if (owned) {
+    weapons_.push_back({weapon, upgrades, evolved});
+    weaponShotClocks_.push_back(0);
+  }
+  return true;
+}
 void Gameplay::offerUpgrade() {
   if (stats_.experience < experienceToNextLevel()) return;
   std::vector<UpgradeChoice> available;
@@ -174,11 +199,12 @@ void Gameplay::update(float dt, const glm::vec3& player,
       std::remove_if(explosions_.begin(), explosions_.end(),
                      [](const Explosion& blast) { return blast.age >= 0.4F; }),
       explosions_.end());
-  stats_.remainingSeconds = std::max(0.F, stats_.remainingSeconds - dt);
+  if (!showcase_)
+    stats_.remainingSeconds = std::max(0.F, stats_.remainingSeconds - dt);
   for (float& clock : weaponShotClocks_) clock = std::max(0.0F, clock - dt);
   hurtClock_ = std::max(0.F, hurtClock_ - dt);
   spawnClock_ -= dt;
-  if (spawnClock_ <= 0) {
+  if (!showcase_ && spawnClock_ <= 0) {
     const auto& candidates = world.enemySpawnCandidates();
     if (!candidates.empty()) {
       const auto weights = enemySpawnWeights(level_, elapsedSeconds_);
@@ -274,6 +300,7 @@ void Gameplay::update(float dt, const glm::vec3& player,
   constexpr int width = world::ArenaWorld::kWidth,
                 depth = world::ArenaWorld::kDepth;
   for (const auto index : order) {
+    if (showcase_) continue; // Stationary range targets do not move or attack.
     auto& e = enemies_[index];
     const auto profile = enemyProfile(e.kind);
     const auto worldClear = [&](glm::vec3 from, glm::vec3 to) {
@@ -665,6 +692,10 @@ void Gameplay::update(float dt, const glm::vec3& player,
 void Gameplay::damageEnemy(Enemy& enemy, int damage, const glm::vec3& impact,
                            Weapon weapon) {
   if (enemy.health <= 0) return;
+  if (showcase_) {
+    hits_.push_back({impact, enemy.id, false, weapon});
+    return; // Preserve real contact/impact events without killing the target.
+  }
   enemy.health -= damage;
   hits_.push_back({impact, enemy.id, enemy.health <= 0, weapon});
   if (enemy.health <= 0) {

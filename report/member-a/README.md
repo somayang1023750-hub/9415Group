@@ -1,63 +1,49 @@
-# Member A report capture workspace
+# Interactive training range (replacement showcase)
 
-This is a **staged demonstration**, not a gameplay/performance benchmark. It
-reuses production `ArenaRenderer`, enemy atlases, `ParticleEffects`, GLSL shaders
-and `drawGameplayUi`. No alternate particle sizes, colours, lifetimes or enemy
-models are implemented here. Only placement, camera and replay timing are staged.
-The original four-spark trail is shared through `drawFirebombTrail`, also called
-by `ArenaScene`; the extraction preserves its original formulas and rendering.
+The old Figure 1–4 replay pages and canned UI fixtures have been removed from
+MemberAShowcase. This executable is now a playable capture range using the real
+ArenaScene, player movement, mouse projection, projectile collision, models,
+weapon profiles and particle rendering. The normal Craft game remains normal.
 
-## Windows / existing Visual Studio checkout
+## Windows
 
-1. Pull main. You can run `report/member-a/build_windows.cmd` from your existing
-   Developer Command Prompt to build the separate target. In Visual Studio CMake settings, add the CMake argument
-   `-DCRAFT_BUILD_MEMBER_A_SHOWCASE=ON`, then configure and Build All.
-2. Choose **MemberAShowcase.exe** as startup target and run with Ctrl+F5.
-3. Alternatively, Developer PowerShell from the repository root:
+Pull main, then run `report\member-a\build_windows.cmd` from the Visual Studio
+Developer Command Prompt. Run `build-report\Debug\MemberAShowcase.exe` afterwards
+(or `build-report\MemberAShowcase.exe` with Ninja/single-config builds).
+You can also set `-DCRAFT_BUILD_MEMBER_A_SHOWCASE=ON` in Visual Studio CMake
+settings and select MemberAShowcase as the startup target. The target name and
+build script are retained so an existing build-report folder can be rebuilt.
 
-```powershell
-cmake -S . -B build-report -DCRAFT_BUILD_MEMBER_A_SHOWCASE=ON
-cmake --build build-report --config Debug --target MemberAShowcase --parallel 4
-.\build-report\Debug\MemberAShowcase.exe
-```
+## Range and controls
 
-With Ninja/single-config builds the executable is `build-report/MemberAShowcase.exe`.
-Keep the generator/Python/dependencies that already work for your normal build.
-Do not mix CMake generators in an existing build folder.
+Five real enemy models stand still beside cover or the outer walls. They remain
+solid and can be hit indefinitely, but do not lose health, die, attack or drop
+EXP. There are no automatic waves and no survival countdown. Walk to outer-wall
+targets using the normal following camera.
 
-## Figures
+- WASD: move. Mouse: aim. Hold left mouse: fire all enabled weapons.
+- SPACE: stop/resume time instantly. No simulation update runs while stopped;
+  projectiles, impacts, fire, animation phases and cooldowns retain their state.
+- N: while stopped, advance exactly 1/60 second.
+- F: toggle automatic time stop on a real collision/impact, including walls.
+- 1 / 2 / 3: fire only Bullet / Laser / Bomb, preserving their chosen upgrades.
+- U: upgrade the selected weapon; after four stages the next press evolves it.
+- E: immediately set the selected weapon to stage four and evolved.
+- The panel also sets owned weapons, stages 0–4, evolution and Night lighting.
+  Changes do not rewrite already-fired projectiles or clear frozen effects.
+- H: hide/show panel. F12: save PNG to `member-a-captures/` in the launch folder.
+- Reset range: deliberately clears actors/projectiles/effects and resets loadout.
+- ESC: exit.
 
-- **Figure 1:** three actual textured models side by side, at original relative
-  sizes. Adjust Model yaw to inspect the skins. Zombie/player foundations are C's
-  work; A added Golem/Spider gameplay and their model/skin integration.
-- **Figure 2:** buttons stage the real Upgrade, Victory and Defeat phases using
-  gameplay updates/kills/EXP. The same production UI draws the modals. Click
-  Figure 2 before selecting the UI state; use its controls to prepare another
-  state after dismissing one. These are clearly demonstration fixtures.
-- **Figure 3:** actual Bullet debris and cyan/red Laser impacts. These are brief;
-  `Freeze hit for Figure 3`, Pause, Step 0.02 s and F12 help capture them. The replay cycle is 4.2 seconds.
-- **Figure 4:** original flight trail, then the real outward blast and original
-  ten ground-fire particles rotating/rising for the normal three-second burn.
-  Pause at different ages for paired screenshots. Night uses production lights.
-- **Figure 5:** use the real AI code excerpts below; for behaviour evidence use
-  the normal game or the existing crowd regression tests, not staged dummy AI.
+For hit screenshots, enable auto-stop (F), shoot a target or wall, then use N to
+advance the frozen burst a few frames. For fire rotation, enable/evolve Bomb and
+shoot, then stop at different ages. Real in-game effect sizes, colours, lifetime,
+ricochet/piercing and fire damage rules are reused. Only target damage/movement,
+spawn waves and survival end conditions are disabled in this explicit range.
 
-F1–F4 switch pages even while a modal is open. U/V/D prepare the real
-upgrade/victory/defeat UI (use these keys if the modal covers the buttons).
-H hides the controls; F12 saves the current framebuffer as a PNG under
-`member-a-captures/` in the launch working directory. Press H again to show the
-controls. Escape exits. Do not use this staged tool's FPS as performance evidence.
-
-```powershell
-py -3 report/member-a/export_code.py
-```
-
-`code/` contains numbered excerpts of the actual source for Figures 3–5. They
-are documentation snapshots and are not compiled. Re-export after changing the
-production implementation. The Word report and Chinese screenshot checklist are
-in this folder. Original teammate sections are retained; only A's text and the
-explicitly requested particle section are rewritten. Figure labels are A1–A5
-in the report to avoid colliding with the teammate's existing Figures 1 and 2.
-
-For a quick automated OpenGL check: `MemberAShowcase --smoke` renders all four
-pages, saves captures, checks GL errors and exits (a display is required).
+The Word and numbered source excerpts remain reference material. Figure 2's
+upgrade/victory/defeat screenshots should now be taken from the normal Craft game;
+the range intentionally has no old UI demonstration pages.
+`py -3 report/member-a/export_code.py` refreshes excerpts after source changes.
+`MemberAShowcase --smoke` exercises real hits, invulnerability, frozen collision
+and fire snapshots, resume and PNG capture; it is not a performance benchmark.

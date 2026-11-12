@@ -1,61 +1,61 @@
 SOURCE: src/core/gameplay/Gameplay.cpp
 Open the original file in Visual Studio for a syntax-highlighted screenshot.
 
- 452:     const auto needsWallReconnect = [&] {
- 453:       if (directWorldClear) return false;
- 454:       for (const auto& step :
- 455:            std::array<glm::vec3, 4>{glm::vec3(1, 0, 0), glm::vec3(-1, 0, 0),
- 456:                                     glm::vec3(0, 0, 1), glm::vec3(0, 0, -1)})
- 457:         if (worldClear(e.position, anchor + step)) return false;
- 458:       return true;
- 459:     };
- 460:     if (!e.waypoint && distance(e.position, anchor) > .02F &&
- 461:         needsWallReconnect() && worldClear(e.position, anchor) &&
- 462:         actorRouteClear(e.position, anchor)) {
- 463:       e.waypoint = anchor;
- 464:       e.directWaypoint = false;
- 465:     }
- 466:     if (e.waypoint) {
- 467:       auto delta = *e.waypoint - e.position;
- 468:       delta.y = 0;
- 469:       const float length = glm::length(delta);
- 470:       if (length > .001F) {
- 471:         const float terrain =
- 472:             world.isWaterSurface(static_cast<int>(std::floor(e.position.x)),
- 473:                                  static_cast<int>(std::floor(e.position.z)))
- 474:                 ? world::ArenaWorld::kWaterMovementSpeedMultiplier
- 475:                 : 1.F;
- 476:         const float travel = std::min(length, profile.speed * terrain * dt);
- 477:         const int count =
- 478:             std::max(1, static_cast<int>(std::ceil(travel / .06F)));
- 479:         const auto step = delta / length * (travel / count);
- 480:         for (int i = 0; i < count; ++i) {
- 481:           const auto next = e.position + step;
- 482:           if (!world.canOccupy(next, profile.halfExtents)) {
- 483:             e.waypoint.reset();
- 484:             break;
- 485:           }
- 486:           // Another body can move away. Wait on the committed route before
- 487:           // the timed replan; do not bounce back to a cell centre each frame.
- 488:           if (!actorClear(next) ||
- 489:               overlaps(next, profile.halfExtents, player, playerHalfExtents()))
- 490:             break;
- 491:           e.position = next;
- 492:         }
- 493:       }
- 494:     }
- 495:     if (distance(previousPosition, e.position) < .0001F &&
- 496:         distance(e.position, player) > 1.1F) {
- 497:       e.blockedSeconds += dt;
- 498:       if (e.blockedSeconds > .35F) {
- 499:         e.waypoint.reset();
- 500:         if (distance(e.position, anchor) > .02F && needsWallReconnect() &&
- 501:             worldClear(e.position, anchor) &&
- 502:             actorRouteClear(e.position, anchor)) {
- 503:           e.waypoint = anchor;
- 504:           e.directWaypoint = false;
- 505:         }
- 506:         e.blockedSeconds = 0;
- 507:       }
- 508:     } else
- 509:       e.blockedSeconds = 0;
+ 479:     const auto needsWallReconnect = [&] {
+ 480:       if (directWorldClear) return false;
+ 481:       for (const auto& step :
+ 482:            std::array<glm::vec3, 4>{glm::vec3(1, 0, 0), glm::vec3(-1, 0, 0),
+ 483:                                     glm::vec3(0, 0, 1), glm::vec3(0, 0, -1)})
+ 484:         if (worldClear(e.position, anchor + step)) return false;
+ 485:       return true;
+ 486:     };
+ 487:     if (!e.waypoint && distance(e.position, anchor) > .02F &&
+ 488:         needsWallReconnect() && worldClear(e.position, anchor) &&
+ 489:         actorRouteClear(e.position, anchor)) {
+ 490:       e.waypoint = anchor;
+ 491:       e.directWaypoint = false;
+ 492:     }
+ 493:     if (e.waypoint) {
+ 494:       auto delta = *e.waypoint - e.position;
+ 495:       delta.y = 0;
+ 496:       const float length = glm::length(delta);
+ 497:       if (length > .001F) {
+ 498:         const float terrain =
+ 499:             world.isWaterSurface(static_cast<int>(std::floor(e.position.x)),
+ 500:                                  static_cast<int>(std::floor(e.position.z)))
+ 501:                 ? world::ArenaWorld::kWaterMovementSpeedMultiplier
+ 502:                 : 1.F;
+ 503:         const float travel = std::min(length, profile.speed * terrain * dt);
+ 504:         const int count =
+ 505:             std::max(1, static_cast<int>(std::ceil(travel / .06F)));
+ 506:         const auto step = delta / length * (travel / count);
+ 507:         for (int i = 0; i < count; ++i) {
+ 508:           const auto next = e.position + step;
+ 509:           if (!world.canOccupy(next, profile.halfExtents)) {
+ 510:             e.waypoint.reset();
+ 511:             break;
+ 512:           }
+ 513:           // Another body can move away. Wait on the committed route before
+ 514:           // the timed replan; do not bounce back to a cell centre each frame.
+ 515:           if (!actorClear(next) ||
+ 516:               overlaps(next, profile.halfExtents, player, playerHalfExtents()))
+ 517:             break;
+ 518:           e.position = next;
+ 519:         }
+ 520:       }
+ 521:     }
+ 522:     if (distance(previousPosition, e.position) < .0001F &&
+ 523:         distance(e.position, player) > 1.1F) {
+ 524:       e.blockedSeconds += dt;
+ 525:       if (e.blockedSeconds > .35F) {
+ 526:         e.waypoint.reset();
+ 527:         if (distance(e.position, anchor) > .02F && needsWallReconnect() &&
+ 528:             worldClear(e.position, anchor) &&
+ 529:             actorRouteClear(e.position, anchor)) {
+ 530:           e.waypoint = anchor;
+ 531:           e.directWaypoint = false;
+ 532:         }
+ 533:         e.blockedSeconds = 0;
+ 534:       }
+ 535:     } else
+ 536:       e.blockedSeconds = 0;

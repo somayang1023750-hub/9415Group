@@ -1,19 +1,19 @@
 SOURCE: src/core/gameplay/Gameplay.cpp
 Open the original file in Visual Studio for a syntax-highlighted screenshot.
 
- 369:     const auto previousPosition = e.position;
- 370:     const auto direct = approach(e.position);
- 371:     const bool directWorldClear = worldClear(e.position, direct);
- 372:     // A transient neighbour must not invalidate a whole route each frame.
- 373:     // Commit to grid turns/recovery until reached; direct goals follow the
- 374:     // live player. Actual movement still checks every actor at every substep.
- 375:     if (e.waypoint && (!worldClear(e.position, *e.waypoint) ||
- 376:                        distance(e.position, *e.waypoint) < .02F ||
- 377:                        (e.directWaypoint && !directWorldClear)))
- 378:       e.waypoint.reset();
- 379:     if (directWorldClear &&
- 380:         ((e.waypoint && e.directWaypoint) ||
- 381:          (!e.waypoint && actorRouteClear(e.position, direct)))) {
- 382:       e.waypoint = direct;
- 383:       e.directWaypoint = true;
- 384:     }
+ 396:     const auto previousPosition = e.position;
+ 397:     const auto direct = approach(e.position);
+ 398:     const bool directWorldClear = worldClear(e.position, direct);
+ 399:     // A transient neighbour must not invalidate a whole route each frame.
+ 400:     // Commit to grid turns/recovery until reached; direct goals follow the
+ 401:     // live player. Actual movement still checks every actor at every substep.
+ 402:     if (e.waypoint && (!worldClear(e.position, *e.waypoint) ||
+ 403:                        distance(e.position, *e.waypoint) < .02F ||
+ 404:                        (e.directWaypoint && !directWorldClear)))
+ 405:       e.waypoint.reset();
+ 406:     if (directWorldClear &&
+ 407:         ((e.waypoint && e.directWaypoint) ||
+ 408:          (!e.waypoint && actorRouteClear(e.position, direct)))) {
+ 409:       e.waypoint = direct;
+ 410:       e.directWaypoint = true;
+ 411:     }
