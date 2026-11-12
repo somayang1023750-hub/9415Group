@@ -110,7 +110,7 @@ that every row was independently executed on every platform.
 | Laser | Unlock Laser; align enemies and shoot near cover | Base laser stops at first enemy and reflects once; evolved red laser pierces until first bounce, then damages and stops on the next enemy |
 | Bomb | Unlock Bomb; aim at enemies or a nearby wall | Base shot deals 2 damage in a 1.75-block radius; at evolution red firebomb leaves sparks and its burning area lasts 3 seconds, dealing 2 damage each second |
 | Golem reward | Defeat a Golem, then compare its drop to a Zombie's | Golem has 14 HP; its drop is about 1.8x the width and grants 2 EXP |
-| Hit styles | Hit enemies and cover with all weapons | Short Bullet debris; cyan Laser electricity, red after evolution; outward Bomb burst; evolved Bomb keeps warm flight fire and its ground-fire particles themselves rotate/rise into a vortex |
+| Hit styles | Hit enemies and cover with all weapons | Short Bullet debris; cyan Laser electricity, red after evolution; outward Bomb burst followed by persistent ground fire; evolved Bomb uses its original four trail sparks and ten ground-fire cubes with added orbital speed |
 | Night glow | Repeat impacts in Night, then pause/reset/switch level | Small coloured fill lights near impacts/residue; distant Night stays dark; pause freezes effects and resets clear them |
 | Defeat | Allow contact damage until HP reaches zero | Centred DEFEAT modal with run statistics and Play again |
 | Victory | Survive 180 simulation seconds | Centred VICTORY modal; upgrade pauses do not consume survival time |

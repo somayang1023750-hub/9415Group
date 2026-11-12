@@ -138,12 +138,14 @@ Golem EXP drops are about 1.8 times the width of ordinary drops, still granting
 reproduced corner-grazing stall without teleporting enemies through cover.
 
 Weapon impacts now emit short Bullet debris, cyan Laser electricity (red after
-evolution) and outward Bomb bursts. Evolved Bombs retain visible orange-red flame
-trails. After impact, their original warm ground-fire particles rotate and rise
+evolution) and outward Bomb bursts. Evolved Bombs use the original four-spark
+orange-red flame trail from before the particle edits. After impact, their
+original ten ground-fire cubes retain their size/colours/rise and rotate faster
 into vortices for the three-second burning lifetime. Night impacts and residue add
 weak coloured local light, leaving distant darkness and Day lighting unchanged.
-Particles pause with gameplay, clear on restart/level change, and render in one
-instanced batch. See [weapon effects and interfaces](docs/member-a-effects.md).
+Particles pause with gameplay and clear on restart/level change. Impact bursts
+use one instanced batch; original fire/trail cubes retain their lit-proxy path.
+See [weapon effects and interfaces](docs/member-a-effects.md).
 
 `core/gameplay/Gameplay` is CPU-only. `ArenaScene::gameplay()` supplies read-only
 actor snapshots, stats and per-frame shot/hit events for C's HUD, animation and

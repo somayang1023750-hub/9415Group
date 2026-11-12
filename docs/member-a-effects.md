@@ -10,15 +10,18 @@ Updated: 2026-11-12 (Australia/Sydney). Follow-up to mixed encounters in `e32b7c
 | Base Laser contact/reflection | Five branching cyan electrical arcs | 0.12-0.22 s |
 | Evolved Laser contact/reflection | Same electrical shape in red | 0.12-0.22 s |
 | Bomb detonation | Particles expand radially from the blast centre | 0.38-0.65 s |
-| Evolved Bomb flight | Visible orange-red flame sparks trailing behind the projectile | Follows active flight |
-| Evolved Bomb detonation/residue | Retained outward burst; orange-red ground-fire particles themselves orbit and rise into a vortex | Fire follows the 3 s burning area |
+| Evolved Bomb flight | Original four orange-red sparks, restored from pre-effects commit `e32b7cf` | Original flight timing |
+| Evolved Bomb detonation/residue | Retained outward burst, followed by the original ten rising ground-fire cubes orbiting the centre | Fire follows the 3 s burning area |
 
-The short explosion-radius ring remains. The firebomb retains its warm flame
-trail, now using sixteen fading emissive sparks instead of four individually
-lit proxy cubes. Its original orange-red ground-fire appearance returns: the
-flame particles themselves rotate and rise around the impact centre. The former
-flat red spiral marks are removed; the vortex is the motion of the fire, not a
-second layer over it. Effect shape, colour and motion distinguish weapons without
+The firebomb's flight-trail block is restored verbatim from `e32b7cf`, before A's
+particle changes: four sparks with the original sizes, colours, spacing, rise,
+timing and lit-proxy rendering. The later sixteen-spark emissive replacement is
+removed. The original ground radius marker and ten lit ground-fire cubes also
+return, retaining their 0.035 half-extent, alternating orange/red colours, four
+orbital radii and upward cycle. Only angular speed changes, from 0.8 to 3.2
+radians/second. These original rising particles themselves form the vortex.
+The accepted centre-outward explosion burst remains, then dissipates while the
+ground fire continues. Effect shape, colour and motion distinguish weapons without
 introducing separate weapon models. These visuals do not change damage, blast
 radius, upgrades, reflection rules, unlocks or independent cooldowns.
 
@@ -43,17 +46,18 @@ receive no added light.
   than a separate burst for every victim. Burning-area damage ticks do not emit
   repeated bursts. Existing `shots()`, `hits()` and `attacks()` contracts remain.
 - `ParticleEffects` owns CPU particle motion, independent seeded visual RNG and
-  derived local lights. It reads impacts, `burningAreas()` and the live projectile
-  snapshot without changing gameplay state. The maximum pools are 2,048 live
-  burst segments, 4,096 total
-  particle visuals including fire/trails, and eight uploaded effect lights.
-  The optional fourth `update` argument is `bullets()`; callers omitting it keep
-  the original impact/residue interface. Trail samples stay behind the bomb and
-  never precede its launch history. Fire/trails consume no gameplay RNG.
+  derived local lights. Its original three-argument `update` reads impacts and
+  `burningAreas()` without changing gameplay state. `visuals()` supplies emissive
+  impacts; `groundFire()` separately supplies the original lit fire cubes for
+  `drawProxy`. The limits are 2,048 live burst segments, 4,096 combined impact/fire
+  visuals and eight uploaded effect lights. Trail rendering is restored in
+  `ArenaScene` and consumes no gameplay RNG.
 - `ArenaScene` consumes events exactly once when simulation advances. Upgrade,
   result and benchmark pauses freeze particles/lights. Restart and level changes
-  clear all effect buffers. C can read `particleCount()` for diagnostics.
-- `ArenaRenderer::drawParticles()` uses one instanced draw with a dedicated VAO.
+  clear all effect buffers. C can read `particleCount()` (impacts plus ground
+  fire) and `groundFireCount()` for diagnostics; original trail parts and ground
+  radius markers are counted separately in main.
+- `ArenaRenderer::drawParticles()` uses one instanced impact draw with a dedicated VAO.
   Existing model-matrix attributes 3-6 and normal attribute 7 are preserved;
   attribute 8 holds per-instance RGBA. The `uParticlePass` shader branch renders
   fading coloured segments without material lighting. Depth testing remains
@@ -72,13 +76,16 @@ receive no added light.
 - The full C++17 application builds in Linux Release; all 46 current tests pass.
   Eight particle cases cover colour/expiry, radial motion, rising/orbiting fire,
   pause/reset, bounded pools, transient real wall events, visual RNG isolation,
-  warm trailing sparks/launch bounds and bounded fading lights. Enemy tests cover
+  original fire size/colour/rise, burst expiry with lingering fire and bounded fading lights. Enemy tests cover
   Golem HP, typed orb rewards and automatic spawn safety.
 - An OpenGL/Xvfb/Mesa harness renders impacts, flame flight and rotating fire
   using production shaders in Day and Night. No GL errors were observed. It also checks blend/
   depth-write restoration and real scene impacts, upgrade pause, restart and
   level-reset clearing. The harness is a temporary diagnostic, not a runtime
   dependency or committed test target.
+- The restored trail block is checked verbatim against `e32b7cf`. Ground fire
+  preserves the original cube appearance and upward cycle; tests verify its
+  tangential movement at a fixed radius and removal at three seconds.
 - Pixel comparison of the same frame with fill lights enabled/disabled shows
   identical Day surfaces; Night differs near the impacts. The distant control
   region is identical in both modes. This demonstrates local lighting, not

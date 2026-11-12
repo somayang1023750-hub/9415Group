@@ -24,10 +24,11 @@ teammate weapon progression, individual cooldowns, layouts, instancing and BRDF/
 normal-map interfaces. Exact details live in [mixed enemy encounters](member-a-monsters.md)
 and [weapon effects](member-a-effects.md).
 
-The latest playtest revision adds an eight-block body-edge safety zone to every
-automatic spawn attempt. It also retains the firebomb's warm flame trail and
-makes the original ground-fire particles themselves rotate/rise into a vortex.
-The accepted radial explosion burst is retained.
+The latest playtest revisions add an eight-block body-edge safety zone to every
+automatic spawn attempt and restore the pre-effects firebomb trail verbatim from
+`e32b7cf`. The original ten ground-fire cubes retain their appearance and rise,
+with only angular motion sped up to form a vortex. The accepted radial explosion
+burst is retained.
 
 ## Gameplay delivered by A
 
@@ -90,9 +91,11 @@ Bombs also detonate at their three-second lifetime limit.
 
 A's new hit styles are short Bullet debris, cyan/red Laser electricity, radial
 Bomb bursts and evolved Bomb orange-red fire particles rotating into ground
-vortices. The warm flight trail uses the same emissive particle batch. Night adds bounded, weak local
-fill lights; Day lighting is unchanged. Effects use independent RNG and a single
-particle instanced draw, without modifying combat or spawn randomness.
+vortices. Flight uses the original four lit trail sparks, and ground fire uses
+the original ten lit cubes; impact bursts use the emissive instanced batch.
+Night adds bounded, weak local fill lights; Day lighting is unchanged. Impact
+bursts use independent RNG and a single instanced draw, without modifying combat
+or spawn randomness. Original trail/ground-fire cubes retain lit proxy rendering.
 
 ## Enemy profiles and encounter timing
 

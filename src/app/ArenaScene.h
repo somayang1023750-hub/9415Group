@@ -60,7 +60,11 @@ class ArenaScene {
   [[nodiscard]] int worldVertexCount() const noexcept;
   [[nodiscard]] int worldDrawCallCount() const noexcept;
   [[nodiscard]] int particleCount() const noexcept {
-    return static_cast<int>(effects_.visuals().size());
+    return static_cast<int>(effects_.visuals().size() +
+                            effects_.groundFire().size());
+  }
+  [[nodiscard]] int groundFireCount() const noexcept {
+    return static_cast<int>(effects_.groundFire().size());
   }
 
  private:

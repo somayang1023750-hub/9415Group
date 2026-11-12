@@ -1,6 +1,8 @@
 #include <algorithm>
 #include <catch2/catch_test_macros.hpp>
+#include <cmath>
 #include <glm/geometric.hpp>
+#include <glm/vec2.hpp>
 
 #include "core/gameplay/ParticleEffects.h"
 #include "world/ArenaWorld.h"
@@ -51,75 +53,62 @@ TEST_CASE("Laser impact arcs distinguish cyan and evolved red", "[particles]") {
   }
 }
 TEST_CASE(
-    "Original fire particles rotate and rise for the burning lifetime and "
-    "pause without "
-    "advancing",
+    "Original ground-fire cubes orbit and rise during the three-second burn",
     "[particles]") {
   ParticleEffects fx;
   BurningArea area{{10, 1.32F, 10}, 3.5F};
   fx.update(.01F, {}, {area});
-  REQUIRE(fx.visuals().size() == 48);
-  const auto initial = fx.visuals();
+  REQUIRE(fx.visuals().empty());
+  REQUIRE(fx.groundFire().size() == 10);
+  const auto initial = fx.groundFire();
   float highest = 0;
-  for (const auto& p : initial) {
-    REQUIRE(p.position.y > 1.08F);
-    REQUIRE(p.position.y - p.halfExtents.y >= 1);
+  for (std::size_t i = 0; i < initial.size(); ++i) {
+    const auto& p = initial[i];
+    REQUIRE(p.position.y >= 1.16F);
+    REQUIRE(p.position.y < 1.88F);
     highest = std::max(highest, p.position.y);
-    REQUIRE(p.halfExtents.y > p.halfExtents.x);
-    REQUIRE(p.direction == glm::vec3(0, 1, 0));
-    REQUIRE(p.color.r > p.color.g);
-    REQUIRE(p.color.g > p.color.b * 4);
-    REQUIRE(glm::length(glm::vec3(p.position.x - 10, 0, p.position.z - 10)) <=
-            area.radius);
+    REQUIRE(p.halfExtents == glm::vec3(.035F));
+    REQUIRE(p.color == (i % 2 == 0 ? glm::vec4(1, .18F, .025F, 1)
+                                   : glm::vec4(1, .48F, .045F, 1)));
   }
   REQUIRE(highest > 1.45F);
   area.age = .1F;
   fx.update(0, {}, {area});
-  REQUIRE(fx.visuals()[0].position == initial[0].position);
+  REQUIRE(fx.groundFire()[0].position == initial[0].position);
   fx.update(.1F, {}, {area});
-  REQUIRE(glm::length(fx.visuals()[0].position - initial[0].position) > .01F);
   const auto before = initial[0].position - area.position;
-  const auto after = fx.visuals()[0].position - area.position;
-  // A tangential component verifies orbiting, rather than merely rising/fading.
-  REQUIRE(before.x * after.z - before.z * after.x < -.01F);
+  const auto after = fx.groundFire()[0].position - area.position;
+  REQUIRE(after.y > before.y);
+  // Tangential movement at a fixed radius distinguishes orbiting from rising.
+  REQUIRE(before.x * after.z - before.z * after.x > .01F);
+  REQUIRE(std::abs(glm::length(glm::vec2(before.x, before.z)) -
+                   glm::length(glm::vec2(after.x, after.z))) < .001F);
   area.age = 3;
   fx.update(.1F, {}, {area});
-  REQUIRE(fx.visuals().empty());
+  REQUIRE(fx.groundFire().empty());
 }
-TEST_CASE("Evolved bomb retains a warm visible flame trail behind its flight",
+TEST_CASE("An evolved blast dissipates while the original ground fire persists",
           "[particles]") {
   ParticleEffects fx;
-  Bullet bomb{{16, 1.32F, 16}, {13, 0, 0}, 2.8F, 4, Weapon::Bomb};
-  bomb.evolved = true;
-  fx.update(.01F, {}, {}, {bomb});
-  REQUIRE(fx.visuals().size() == 16);
-  for (const auto& p : fx.visuals()) {
-    REQUIRE(p.position.x < bomb.position.x);
-    REQUIRE(p.position.x > bomb.position.x - .2F * 13);
-    REQUIRE(p.position.y > bomb.position.y);
-    REQUIRE(p.color.r > p.color.g);
-    REQUIRE(p.color.g > p.color.b * 4);
-    REQUIRE(p.color.a > 0);
-    REQUIRE(p.color.a < 1);
+  BurningArea area{{10, 1.32F, 10}, 3.5F};
+  const ImpactEvent hit{
+      area.position, {0, 1, 0}, Weapon::Bomb, true, area.radius};
+  fx.update(.01F, {hit}, {area});
+  REQUIRE(fx.visuals().size() == 64);
+  REQUIRE(fx.groundFire().size() == 10);
+  for (int i = 0; i < 7; ++i) {
+    area.age += .1F;
+    fx.update(.1F, {}, {area});
   }
-  const auto frozen = fx.visuals()[0].position;
-  bomb.position.x += 1;
-  fx.update(0, {}, {}, {bomb});
-  REQUIRE(fx.visuals()[0].position == frozen);
-  bomb.life = 2.99F;
-  fx.update(.01F, {}, {}, {bomb});
-  REQUIRE(fx.visuals().empty());  // No trail ahead of launch history.
-  bomb.life = 2.8F;
-  bomb.evolved = false;
-  auto laser = bomb;
-  laser.weapon = Weapon::Laser;
-  laser.evolved = true;
-  fx.update(.01F, {}, {}, {bomb, laser});
   REQUIRE(fx.visuals().empty());
-  bomb.evolved = true;
-  fx.update(.01F, {}, {}, {bomb});
+  REQUIRE(fx.groundFire().size() == 10);
+  REQUIRE_FALSE(fx.lights().empty());
+  const auto frozen = fx.groundFire()[0].position;
+  fx.update(0, {}, {area});
+  REQUIRE(fx.groundFire()[0].position == frozen);
   fx.reset();
-  REQUIRE(fx.visuals().empty());
+  REQUIRE(fx.groundFire().empty());
+  REQUIRE(fx.lights().empty());
 }
 TEST_CASE("Visual buffers are bounded and reset clears and reseeds effects",
           "[particles]") {
@@ -136,11 +125,8 @@ TEST_CASE("Visual buffers are bounded and reset clears and reseeds effects",
   fx.update(.01F, hits, {});
   REQUIRE(fx.visuals().size() <= ParticleEffects::kParticleLimit);
   fx.update(.01F, {}, areas);
-  REQUIRE(fx.visuals().size() <= ParticleEffects::kVisualLimit);
-  Bullet fire{{16, 1.32F, 16}, {13, 0, 0}, 2.8F, 4, Weapon::Bomb};
-  fire.evolved = true;
-  fx.update(.01F, {}, {}, std::vector<Bullet>(1000, fire));
-  REQUIRE(fx.visuals().size() <= ParticleEffects::kVisualLimit);
+  REQUIRE(fx.visuals().size() + fx.groundFire().size() <=
+          ParticleEffects::kVisualLimit);
 }
 TEST_CASE("Wall contacts emit one transient visual impact and no enemy damage",
           "[particles]") {

@@ -4,6 +4,19 @@ This file records the changes made to the starter code and explain why the issue
 
 
 
+## 2026-11-12 — Member A: restore the pre-edit firebomb appearance
+
+- Restored the evolved Bomb flight-trail block verbatim from `e32b7cf`: original
+  four lit sparks, sizes, colours, spacing and timing. Removed the later
+  sixteen-spark emissive redesign.
+- Retained the accepted outward explosion burst and restored the original ten
+  rising ground-fire cubes/radius marker. Only their angular speed changes
+  (0.8 to 3.2 rad/s) so the original particles themselves form the vortex.
+- Kept three-second burning damage, Night fill, spawn safety and weapon rules.
+  Updated draw/triangle counts for the restored lit rendering path.
+- Full C++17 build and 46 tests pass; original-trail source comparison and
+  Day/Night production-shader checks cover the corrected presentation.
+
 ## 2026-11-12 — Member A: safer encounters and rotating firebomb flames
 
 - Added an eight-block player/enemy body-edge safety zone to all automatic spawn

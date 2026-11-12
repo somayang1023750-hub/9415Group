@@ -1,5 +1,6 @@
 #include <algorithm>
 #include <exception>
+#include <glm/geometric.hpp>
 #include <iomanip>
 #include <iostream>
 #include <optional>
@@ -171,13 +172,20 @@ int main() {
       const int proxyCount =
           static_cast<int>(arenaScene.gameplay().bullets().size() +
                            arenaScene.gameplay().orbs().size());
+      int trailParts = 0;
+      for (const auto& bullet : arenaScene.gameplay().bullets())
+        if (bullet.weapon == craft::gameplay::Weapon::Bomb && bullet.evolved &&
+            glm::length(bullet.velocity) > .0001F)
+          trailParts += 4;
       uiDiagnostics.renderedTriangles +=
-          (proxyCount + arenaScene.particleCount()) * 12;
+          (proxyCount + trailParts + arenaScene.particleCount()) * 12;
       uiDiagnostics.drawCalls =
           arenaScene.worldDrawCallCount() +
           craft::graphics::ArenaRenderer::kPlayerPartCount + enemyDrawCalls +
-          proxyCount + (arenaScene.particleCount() > 0 ? 1 : 0) +
-          static_cast<int>(arenaScene.gameplay().explosions().size());
+          proxyCount + trailParts + arenaScene.groundFireCount() +
+          (arenaScene.particleCount() > arenaScene.groundFireCount() ? 1 : 0) +
+          static_cast<int>(arenaScene.gameplay().explosions().size() +
+                           arenaScene.gameplay().burningAreas().size());
       uiDiagnostics.framebufferWidth = framebufferWidth;
       uiDiagnostics.framebufferHeight = framebufferHeight;
       uiDiagnostics.frameTimeMilliseconds = deltaSeconds * 1000.0F;

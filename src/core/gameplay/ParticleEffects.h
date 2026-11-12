@@ -29,10 +29,14 @@ class ParticleEffects {
   static constexpr std::size_t kLightLimit = 8;
   void reset();
   void update(float dt, const std::vector<ImpactEvent>& impacts,
-              const std::vector<BurningArea>& burningAreas,
-              const std::vector<Bullet>& bullets = {});
+              const std::vector<BurningArea>& burningAreas);
   [[nodiscard]] const std::vector<ParticleVisual>& visuals() const {
     return visuals_;
+  }
+  // C: original lit fire cubes, drawn through drawProxy rather than the
+  // emissive impact batch. Only their orbital movement differs from baseline.
+  [[nodiscard]] const std::vector<ParticleVisual>& groundFire() const {
+    return groundFire_;
   }
 
   [[nodiscard]] const std::vector<EffectLight>& lights() const {
@@ -62,5 +66,6 @@ class ParticleEffects {
   std::mt19937 random_{9415};
   std::vector<Particle> particles_;
   std::vector<ParticleVisual> visuals_;
+  std::vector<ParticleVisual> groundFire_;
 };
 }  // namespace craft::gameplay
