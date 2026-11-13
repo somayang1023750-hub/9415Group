@@ -1,0 +1,14 @@
+SLIDE 1
+Hello, I’m Xingyu, Member A. Voxel Arena is a 2.5D survival shooter with Day and Night maps. Players survive one hundred and eighty seconds. Day starts with Zombies; Golems gradually join after sixty seconds. Night starts with Spiders; Zombies join after thirty seconds and Golems after sixty. By two minutes, Day reaches seventy percent Zombies and thirty percent Golems. Night reaches thirty percent Spiders, fifty percent Zombies and twenty percent Golems. These are spawn weights, not living enemy quotas.
+
+SLIDE 2
+Players move in eight directions, aim with the mouse and collect experience. Level-up pauses the action and offers up to two choices: upgrade, evolve or unlock a weapon. Each accepted choice restores full health. Owned weapons fire independently. Victory and defeat screens explain the outcome and allow a restart.
+
+SLIDE 3
+Zombies are the baseline. Golems have fourteen health, double contact damage and larger experience drops, but move slowly. Spiders have three health and move faster, while remaining slower than the player. Spawning keeps six blocks of body clearance and caps enemies at twenty-four. Committed routes and delayed replanning handle corners and congestion.
+
+SLIDE 4
+Bullets produce warm debris. Lasers produce branching cyan electrical arcs, changing to red after evolution. Enemy and wall contacts share the same event path. Swept collision checks prevent fast projectiles passing through obstacles. A separate visual random generator keeps particles independent of spawning and damage. Instanced rendering and bounded buffers control the workload.
+
+SLIDE 5
+The evolved bomb leaves four sparks in flight, then sends sixty-four particles outward on impact. Its three-second burning area shows ten rising fire particles rotating around the centre. Weak local lights improve night visibility. Visuals pause with gameplay and clear on restart, independently of damage. Together, these systems complete the survival loop. Thank you.
